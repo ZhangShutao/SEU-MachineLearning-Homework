@@ -1,0 +1,48 @@
+\documentclass[10pt]{beamer}
+\usepackage{xeCJK}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata}
+
+\usetheme[
+%	sidebar, % 默认不显示包含幻灯片结构的边框。如设置sidebar选项，则参考AAU模板显示左边框
+	footline,
+	blue, % 主色调默认为红色，色调可以选择red和blue
+%	wide, % 幻灯片的长宽比默认为4:3，如设置了wide选项则为16:9
+	hideallsubsections, % 默认显示所有等级的标题。如设置了hideallsubsections，
+	                    % 则不显示小节标题
+	mathserif, % 默认公式字体是钝化的，如设置mathserif选项则采用正常的公式字体
+%	english, % 默认幻灯片环境为中文，如设置english选项则采用英文的章节和图表编号
+	sectiontoc, % 设置sectiontoc选项则在每节（section）之前添加一个所有节的目录，
+	            % 并标明本节在整个幻灯片中的位置，不建议和\part层级一同使用
+]{SEUstyle}
+
+\title[第四组报告]{强化学习在FPS游戏中的应用 \\ 强化学习与规划}
+\author[张舒韬 et al.]{刘翔~吴江恒~张舒韬~赵倩隆}
+\institute[SEU CS Dept. Team 4]{东南大学\ 计算机科学与工程学院\ 第4组}
+
+\begin{document}
+	{\background
+		\begin{frame}[plain,noframenumbering]
+			\titlepage
+		\end{frame}
+	}
+
+	\begin{frame}{总目录}
+		第I部分 强化学习与规划
+		\tableofcontents[part=1]
+		第II部分 强化学习在FPS游戏中的应用
+		\tableofcontents[part=2]
+	\end{frame}
+
+	\part{强化学习与规划}\label{part:rl-and-planning}
+	
+	\part{强化学习在FPS游戏中的应用}\label{part:rl-in-fps}
+	
+	{\background%末页致谢
+		\begin{frame}[plain,noframenumbering]
+			\finalpage{{\huge 感谢观看！\\ \small Q \& A}}
+		\end{frame}
+	}
+	
+\end{document}
