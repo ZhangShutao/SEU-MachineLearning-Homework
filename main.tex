@@ -8,6 +8,7 @@
 \usetikzlibrary{arrows,automata}
 
 \renewcommand{\thealgocf}{}
+\newcommand{\sgn}{\textrm{sgn}}
 
 \usetheme[
 %	sidebar, % 默认不显示包含幻灯片结构的边框。如设置sidebar选项，则参考AAU模板显示左边框
@@ -362,11 +363,267 @@
 			\only<2>{P agent的累积奖励变化与$p(e)$的概率保持一致。但由于实际应用中，$D_m$和$D$差距较大，因此直接使用规划方法不可能取得如此良好的结果。}
 			\only<3>{RL agent很快学到了最优策略，但环境变化后没有能发现更优的策略。}
 			\only<4>{PRL agent学到了最优策略，并在环境变化后选择了更优的策略。}
-			\only<5>{Pmem-n agent被起初的观察限制，没有发现环境的变化，因此没有发现更优的策略。实际上，无论$n$的取值如何，agent在不稳定的环境中都没有获得最优策略。}
+			\only<5>{Pmem-1 agent被起初的观察限制，没有发现环境的变化，因此没有发现更优的策略。实际上，无论$n$的取值如何，agent在不稳定的环境中都没有获得最优策略。}
 		}
 	\end{frame}
 
-	\section{事后经验回放与稀疏奖励下的规划}
+	\part{事后经验回放}\label{part:her}
+	
+	\section{相关背景}
+	
+	\begin{frame}{相关背景}{简介}
+		\begin{itemize}
+			\item<2-> 强化学习（RL）与神经网络的结合被广泛应用于序列决策问题中；
+			
+			\item<3-> 一个必须要面对的问题（尤其对于机器人设计来说）：通常需要设计一个回报函数（reward function），它不仅要体现目标任务，而且还要能够指导agent优化决策策略（policy optimization）；
+			
+			\item<4-> 由此带来的问题是：这不仅需要RL专业知识，还需要领域特定的知识（domain-specific knowledge）；
+			
+		\end{itemize}
+		
+		\visible<5>{Problem：能否设计一个算法，能够从unshaped reward signals（e.g. 一个0-1 reward表明任务是否成功完成）中学习?}
+	\end{frame}
+
+	\begin{frame}{背景介绍}{简介}
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}
+				\draw (0,0) rectangle (6cm, 4cm);
+				\draw [draw=white] (4,3.5) node {Target Area};
+				\draw (4,2) circle [radius=.75cm];
+				\fill (1,2.5) circle [radius=.05cm,fill=black];
+				\draw [->,>=stealth,draw=red] (1,2.5) -- (4,0.5);
+				
+				\visible<2->{\draw(4,1) circle [radius=.75cm];}
+			\end{tikzpicture}
+			\caption{人类拥有的一种能力是从未达到预期的结果那里获得与希望获得的结果几乎一样的知识。}\label{fig:idea-of-her}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{相关背景}{Deep Q-Networks(DQN)}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.4\linewidth]{pictures/DQN}
+			\caption{使用神经网络来近似Q函数。该网络将一个状态s作为输入，并为每个动作a输出Q函数的估计值。}
+			\label{fig:dqn}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{相关背景}{经验回放（Experience Replay）}
+		\begin{itemize}
+			\item 对于不可枚举状态的环境（如连续的状态空间），一般采用值函数逼近（Value Function Approxiamation）来拟合和泛化Q函数。
+			
+			\item 经验回放（Experience replay）是从一个memory pool中随机选取expeirence更新网络。
+			
+			\item DQN是基于监督学习的框架，而loss function基于RL，因此会有这样的问题：监督学习需要假设样本是独立同分布，而RL中的强序列关联性不符合这个假设。如果没有experience replay，可能会出现不收敛的情况；
+			
+			\item 采用Experience Replay，会缓和样本的关联性。其优点包括：
+				\begin{enumerate}
+					\item 算法收敛；
+					\item 提高泛化能力;
+				\end{enumerate}
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{相关背景}{Deep Deterministic Policy Gradients (DDPG)}
+		\begin{itemize}
+			\item<2-> DQN是一个面向离散控制的算法，即输出的动作是离散的；
+			
+			\item<3-> 深度确定性策略梯度（Deep Deterministic Policy Gradient， DDPG）算法是利用 DQN 扩展 Q 学习算法的思路对确定性策略梯度（Deterministic Policy Gradient， DPG）方法进行改造，提出的一种基于行动者-评论家（Actor-Critic，AC）框架的算法，该算法可用于解决连续动作空间上的 DRL 问题。
+			
+			\item<4-> 随机性策略和确定性策略：
+				\begin{description}
+					\item[随机性策略]<5-> 策略输出的是动作的概率，比如连续动作控制，使用的是一个正态分布对动作进行采样选择，即每个动作都有概率被选到；
+						\begin{description}
+							\item[优点] 将探索和改进集成到一个策略中；
+							\item[缺点] 需要大量训练数据；
+						\end{description}
+					
+					\item [确定性策略]<6-> 策略输出即是动作
+						\begin{description}
+							\item[优点] 需要采样的数据少，算法效率高；
+							\item[缺点] 无法探索环境；
+						\end{description}
+				\end{description}
+			
+		\end{itemize}
+	\end{frame}
+	
+	\section{事后经验回放（HER）}
+	
+	\begin{frame}{HER}{启发案例-I}
+		\begin{example}
+			\begin{columns}
+				\begin{column}{0.5\textwidth}
+					\begin{itemize}
+						\item 环境描述：
+							\begin{description}
+								\item[状态空间] $S = \{0,1\}^n$
+								\item[动作空间] $\{0, 1, \dots, n-1 \}$
+								\item[奖励函数] $r(s,a) = -\sgn(s \neq g)$
+							\end{description}	
+					\end{itemize}
+					
+				\end{column}
+				\begin{column}{0.5\textwidth}
+					\begin{figure}
+						\includegraphics[width=.7\linewidth]{pictures/bit-flip.png}
+						\caption{Bit Flipping实验结果}\label{fig:bi-flip}
+					\end{figure}
+				\end{column}
+			\end{columns}
+		
+			\begin{tikzpicture}
+				\node [draw opacity=0] (s) at (0,.5) {s:0100101010};
+				\node [draw opacity=0] (g) at(0,0) {g:1101010100};
+				\visible<3-> {
+					\node [draw opacity=0,right of=s] (s1) at (3,.5) {\textcolor{red}{1}100101010};
+					\path [->] (s) edge (s1);
+				}
+				\visible<2-> {
+					\node [draw opacity=0] (a) at (2,.75) {Action:0};
+				}
+				\visible<4-> {
+					\node [draw opacity=0] (r) at (2,.25) {Reward:-1};
+				}
+				\visible<5-> {
+					\node [draw opacity=0] (v) at (6,.5) {};
+					\path [->] (s1) edge node (dot) {$\cdots$} (v);
+				}
+			\end{tikzpicture}
+		\end{example}
+	\end{frame}
+
+	\begin{frame}{HER}{启发案例-II}
+		\begin{itemize}
+			\item<2-> 在这样的环境下，尤其是比特位数$n$>40时，经典的强化学习算法如DQN很难学习到从起始状态到终点状态的路径；因为它探索到的reward值基本都是-1；
+			
+			\item<3-> 在这样的环境中，一个比较好的解决方法是用一个shaped reward function，以此来给予agent更多到达终点的信息；如： $r_g(s,a) = -||s - g||^2 $；
+			
+			\item<4-> 在更为复杂的环境中，设置一个有效的合适的回报函数有时会比较困难；因此本文目的是设计一个更为普遍的通用于多种环境中的方法，而不要有针对环境的特定领域知识。
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{HER}{多目标强化学习（Multi-goal RL ）}
+		\begin{itemize}
+			\item 训练agent能够学会到达多个目标点；
+				\[f_g \left( (x,y) \right) =  \sgn(s=g) \]
+			
+			\item 使用Universal Value Function Approximators，在训练policy和value function的过程中，将state $s$和目标$g$作为输入；
+		\end{itemize}
+		
+	\end{frame}
+
+	\begin{frame}{HER}{算法描述}
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}[->,>=stealth',node distance=2cm]
+				\node [state] (s0) {$s_0$};
+				\node [state,right of=s0] (s1) {$s_1$};
+				\node [state,right of=s1] (s2) {$s_2$};
+				\node [state,right of=s2] (s3) {$s_3$};
+				\node [state,right of=s3] (sr) {$s_r$};
+				\path (s0) edge (s1)
+						  (s1) edge (s2)
+						  (s2) edge (s3)
+						  (s3) edge node {$\cdots$} (sr);
+			\end{tikzpicture}
+		\end{figure}
+	
+		\begin{algorithm}[H]
+			A episode: $s_0,s_1,s_2,…, s_T$\;
+			
+			\ForEach{Time-stem $t$}{
+				使用现有的策略A，从中选取一个action$a_t$，即$a_t \gets \pi_b (s_t ||g)$\;
+				计算reward值：$r_t=r(s_t,a_t,g)$\;
+				Experience Replay： 将状态转移$s_t \rightarrow s_(t+1)$以$(s_t ||g,a_t,r_t,s_(t+1)||g)$形式保存到replay buffer中\;
+			}
+			利用replay buffer 进行更新已有策略A\;
+			\caption{事后经验回放算法}\label{alg:her}
+		\end{algorithm}
+	\end{frame}
+	
+	\section{实验}
+	
+	\begin{frame}{实验}{环境}
+		\begin{itemize}
+			\item 采用在现有的硬件机器人的基础上的控制环境
+			\item 可用一个物理引擎模拟机器人的控制和反馈
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.7\linewidth]{pictures/her-robot}
+					\caption{三种不同的任务：pushing（第一行），sliding（第二行），pick and place（第三行）}
+					\label{fig:her-robot}
+				\end{figure}
+				
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{实验}{三种任务}
+		\begin{description}
+			\item[Pushing] A box is placed on a table in front of the robot and the task is to move it to the target location on the table. The robot fingers are locked to prevent grasping. The learned behavior is a mixture of pushing and rolling.
+			
+			\item[Sliding] A puck is placed on a long slippery table and the target position is outside of the robot’s reach so that it has to hit the puck with such a force that it slides and then stops in the appropriate place due to friction.
+			
+			\item[Pick-and-place] The target position is in the air and the fingers are not locked. 
+			
+		\end{description}
+	\end{frame}
+
+	\begin{frame}{实验}{模型}
+		\begin{description}
+			\item[States] The state of the system is represented in the MuJoCo physics engine and consists of angles and velocities of all robot joints as well as positions, rotations and velocities (linear and angular) of all objects.
+			
+			\item[Goals] Goals describe the desired position of the object (a box or a puck depending on the task) with some fixed tolerance of $\epsilon$, i.e. , $f_g(s) = \sgn(g-s_{object} \leq \epsilon)$. 
+			
+			\item[Rewards] Use binary and sparse rewards $\{−1,0\}$;
+			
+			\item[State-goal distributions] For all tasks the initial position of the gripper is fixed, while the initial position of the object and the target are randomized;
+			
+		\end{description}
+	\end{frame}
+	
+	\begin{frame}{实验}{多目标学习结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/multi-goal-expr}
+			\caption{多目标学习曲线}
+			\label{fig:multi-goal-expr}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{实验}{单目标学习结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/single-goal-expr}
+			\caption{单目标学习曲线}
+			\label{fig:single-goal-expr}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{实验}{奖励函数变更结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/reward-shape-expr}
+			\caption{变更奖励函数后的学习曲线，其中$r(s,a,g) = -|g-s'_{object}|^2$}
+			\label{fig:reward-shape-expr}
+		\end{figure}
+		
+	\end{frame}
+
+	\section{结论}
+	
+	\begin{frame}{结论}
+		\begin{enumerate}
+			\item 提出了HER算法，能够将强化学习方法应用到稀疏回报值的问题中；
+			\item HER算法具有很强的通用性，能够结合任意的off-policy RL算法，在实验中结合的是DQN和DDPG方法；
+			\item 在实验中，将HER算法应用到让机器臂完成不同的移动物品的任务上，展示了突出的效果。
+		\end{enumerate}
+	\end{frame}
 		
 	\part{强化学习在游戏中的应用}\label{part:rl-in-fps}
 	
