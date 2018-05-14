@@ -625,9 +625,194 @@
 		\end{enumerate}
 	\end{frame}
 		
-	\part{强化学习在游戏中的应用}\label{part:rl-in-fps}
+
+	\part{DQN 与 DRQN}
 	
-	\section{Atari游戏与DQN}
+	\section{背景知识}
+	
+	\begin{frame}{背景知识}{Atari 2600 games}
+		\begin{columns}
+			\begin{column}{.8\linewidth}
+				\begin{itemize}
+					\item 雅达利（1972 ,美国）
+					\item 主要产品为Atari 2600游戏主机
+					\item 游戏环境 $\varepsilon$
+					\begin{itemize}
+						\item 屏幕输出$x_t$
+						\item agent执行的动作$a_t$
+						\item 游戏分数的变化$r_t$
+						\item 屏幕输出与动作序列表示状态$s_t$
+						\[s_t=x_1,a_1,x_2,a_2,\dots,a_{t-1},x_t \]
+						\item 期望累积奖励
+						\[R_t=\sum\nolimits_{t=t'}^{T}\gamma^{t-t'}r_{t'} \]
+					\end{itemize}
+					%\item 马尔科夫决策过程 % 这个在这里是干啥的？
+				\end{itemize}
+			\end{column}
+			\begin{column}{.2\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.6\linewidth]{pictures/atari2600}
+					\caption{Atari 2600}
+					\label{fig:atari2600}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	
+		\vspace{-1em}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/atari2600-games}
+			\caption{Atari 2600上的五个游戏，分别是Pong，Breakout，Space Invader，Seaquest，Beam Rider}
+			\label{fig:atari2600-games}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{背景知识}{Q-Learning}
+		\begin{itemize}
+			\item $Q^{\pi}(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用策略$\pi$所得到的累计奖励
+			\[Q^{\pi}(s,a) = E[R_t | s_t = s, a_t = a, \pi] \]
+			
+			\item $Q^*(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用最优策略$\pi^*$得到的最优累积奖励
+			\[Q^*(s,a) = \max_{\pi}Q^{\pi}(s,a) \]
+			
+			\item agent的目标就是找到最优策略$\pi^*$
+			
+			\item 如果下一个状态$s'$和其所对应的所有动作$a'$的最优值函数$Q^*(s',a')$已知，那么满足贝尔曼等式
+				\[Q^*(s,a) = \mathbb{E}_{s' \sim \epsilon}[r + \gamma \max_{a'}Q^*(s',a')|s,a] \]
+			
+			\item Q-Learning的定义为：
+				\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{背景知识}{Q学习算法描述}
+		\begin{algorithm}[H]
+			\KwIn{状态空间$S$，动作空间$A$，折扣率$\gamma$，学习率$\alpha$}
+			\KwOut{策略$\pi(s) = \arg\max_{a \in |A|}Q(s,a) $}
+			随机初始化$Q(s,a)$\;
+			$\forall s, \forall a, \pi(a|s) = \frac{1}{|A(s)|} $\;
+			\Repeat{$\forall s, a$，$Q(s,a)$收敛}{
+				初始化起始状态$s$\;
+				\Repeat{$s$为终止状态}{
+					在状态$s$，选择$a \in \pi^{\epsilon}(s)$\;
+					执行动作$a$，得到即时奖励$r$和新状态$s'$\;
+					$Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right]$\;
+					$s \gets s'$\;
+				}
+			}
+			\caption{Q学习算法}
+		\end{algorithm}
+	\end{frame}
+	
+	\section{DQN}
+	
+	\begin{frame}{DQN}{Why DQN}
+		\begin{itemize}
+			\item<2-> 游戏中的状态数量太多，无法遍历和存储所有的值函数
+			
+			\item<3-> 通常使用一个含参函数来估计值函数
+			
+			\item<4-> 强化学习很难从高维数据（例如视频、声音）中直接学习控制策略。许多应用于视频和声音领域的强化学习策略都是基于手工指定的特征
+			
+			\item<5-> 深度卷积神经网络可以直接从视频等高维信息中学习抽象的高层特征
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{Challenges in DQN}
+		\begin{itemize}
+			\item<2-> 深度学习方法要求大量人工标记的训练数据。强化学习算法通常是从数值奖励中学习的，这些奖励反馈通常是稀疏的、有噪声、有延迟的。
+			
+			\item<3-> 大多数深度学习方法假定数据样本是独立的，然而强化学习算法的数据样本通常是具有高度相关性的。
+			
+			\item<4-> 在强化学习中，数据样本的分布随着学习到的策略的改变而改变，而深度学习中假定数据样本的分布是固定的
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{Main Idea of DQN-I}
+		\begin{itemize}
+			\item 训练一个参数为$\theta$的卷积神经网络来估计值函数
+			
+			\item 使用经验回放来减少数据间的相关性，平缓数据分布的变化
+			
+			\item 使用两个网络target Q以及Q网络，两个网络结构一样，参数不同。target Q网络的参数$\theta_i^-$，是Q网络的参数$\theta_i$的历史版本。Q网络的作用是在每次迭代𝑖中改变参数$\theta_i$，估计值函数。target Q网络的作用是给出每次迭代$i$中的估计目标
+			\[y_i = E_(s' \in \epsilon)[r + \gamma \max_{a'} target\_Q(s',a',\theta_i^-)] \]
+			
+			\item 每次迭代𝑖的损失函数可以表示为
+			\[L_i(\theta_i) = E_{s,a,r,s'}[(y_i - Q(s,a| \theta_i))^2] \]
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{Main Idea of DQN-II}
+		\begin{itemize}
+			\item target Q网络使用Q网络的参数$\theta_i$的历史版本能够平缓数据分布的变化
+			
+			\item 第$i$次迭代的损失函数为
+			\[L_i(\theta_i)=E_{s,a,r,s'}[(r + \gamma \max_{a'}target\_Q(s',a',\theta_i^-) - Q(s,a,\theta_i))^2] \]
+			
+			\item 更新梯度为
+				\begin{small}
+					\[\nabla_{\theta_i}L_i(\theta_I) = E_{s,a,r,s'}[(r + \gamma \max_{a'} target\_Q(s',a'|\theta_i^-) - Q(s,a|\theta_i))\nabla_{\theta_i}Q(s,a|\theta_i)] \]
+				\end{small}
+			
+			\item 与Q-learning相比
+			\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{网络结构}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.8\linewidth]{pictures/dqn-architecture}
+			\caption{}
+			\label{fig:dqn-architecture}
+		\end{figure}
+		
+	\end{frame}
+
+	\section{DRQN}
+
+	\begin{frame}{DQN}{经验回放}
+		\begin{itemize}
+			\item 维持一个数量有限的经验池$D=e_1,\dots,e_t$
+			
+			\item 每次agent在时间$t$行动后获得的经验$e_t = (s_t,a_t,r_t,s_{t+1})$存入经验池$D$中
+			
+			\item 在训练时，随机地从经验池$D$中选择经验$e_t$来训练网络
+			
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{DRQN}{算法}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-alg}
+			\caption{}
+			\label{fig:drqn-alg}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{DRQN}{实验结果-I}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/drqn-expr-result-tab}
+			\caption{}
+			\label{fig:drqn-expr-result-tab}
+		\end{figure}	
+	\end{frame}
+
+	\begin{frame}{DRQN}{实验结果-II}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/drqn-expr-result-chart}
+			\caption{}
+			\label{fig:drqn-expr-result-chart}
+		\end{figure}
+		
+	\end{frame}
 	
 	\section{FPS游戏与DRQN}
 	
