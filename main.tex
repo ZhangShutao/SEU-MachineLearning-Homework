@@ -372,8 +372,386 @@
 	
 	\section{Atari游戏与DQN}
 	
-	\section{FPS游戏与DRQN}
+	\part{FPS游戏与DRQN}
 	
+	\section{DRQN}
+	
+	\begin{frame}{Deep Q-Network 回顾}
+		\begin{columns}
+			\begin{column}{.6\linewidth}
+				\begin{itemize}
+					\item 前面提到，DQN在Atari游戏中，有能力学习到不输人类的控制策略。
+					\item 它仅仅将游戏最近4帧的原始画面作为输入，就使agent在Atari游戏中有了能与人类相抗衡的表现。
+					\item 但是，DQN在需要记忆\alert{超过最近4帧}画面的游戏中表现不佳，这类游戏未来的state和reward不仅依赖于当前输入的画面，还依赖于更早画面中的信息。
+					\item 上述现象是一种 Partially-Observable Markov Decision Process (POMDP)。
+				\end{itemize}
+			\end{column}
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture-2}
+					\caption{}
+					\label{fig:dqn-architecture-2}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+		
+	\end{frame}
+
+	\begin{frame}{从DQN到DRQN}
+		为解决前述POMDP问题，我们需要对原始的DQN加以改进，Deep Recurrent Q-Network应运而生。
+		\begin{columns}[c]
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture-2}
+				\end{figure}
+			\end{column}
+			\begin{column}{.1\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/big-arrow}
+				\end{figure}
+			\end{column}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/drqn-architecture}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{Deep Recurrent Q-Network}
+		\begin{columns}
+			\begin{column}{.6\linewidth}
+				与DQN相比，DRQN:
+				\begin{itemize}
+					\item 将原本的全连接层替换为相同维度的Long-Short Term Memory (LSTM).
+					
+					\item 每一个timestep只接受一帧画面作为输入。
+					
+					\item LSTM为过去的状态提供记忆能力。
+					
+				\end{itemize}
+			\end{column}
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/drqn-architecture}
+					\caption{}
+					\label{fig:drqn-architecture}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{Research Line}
+		\begin{itemize}
+			\item Intelligent decision making is the heart of AI.
+			
+			\item Desire agents capable of learning to act intelligently in diverse environments.
+			
+			\item Reinforcement learning provides a general learning framework.
+			
+			\item RL + deep neural networks yields robust controllers that learn from pixels. (DQN)
+			
+			\item DQN lacks mechanisms for handling partial observability.
+			
+			\item Extend DQN to handle Partially Observable Markov Decision Processes (POMDPs).
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DRQN}{实验：DRQN vs DQN}
+		\begin{itemize}
+			\item 比较对象：
+				\begin{itemize}
+					\item DRQN；
+					\item 扩展DQN（将普通DQN的输入扩展到10张图片）；
+					\item DQN.
+				\end{itemize}
+			
+			\item 实验目标：
+				\begin{itemize}
+					\item Standard Atari games
+					\item Flickering Atari games
+				\end{itemize}
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DRQN vs DQN}{实验结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/dqn-vs-drqn-result}
+			\caption{DRQN的表现勉强达到DQN的水平}
+			\label{fig:dqn-vs-drqn-result}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{DRQN}{Flickering Atari games}
+		\begin{columns}
+			\begin{column}{.6\linewidth}
+				以一个随机概率遮蔽屏幕，使游戏呈现partially observability.
+				%这个公式是哪里来的？
+				\[o_t
+					\begin{cases}
+						s_t & with p = \frac{1}{2} \\
+						\langle 0, \dots, 0 \rangle & \text{otherwise}
+					\end{cases}
+				\]
+				
+				现在，当前的游戏状态只能够从历史状态中获取到了。
+			\end{column}
+		
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.7\linewidth]{pictures/pomdp}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{DRQN}{Results: Flickering Atari games}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/flickering-atari-result}
+			\caption{横轴：某时间步能够观测到游戏画面的概率；纵轴：各模型与自己Standard Atari games得分的比值}
+			\label{fig:flickering-atari-result}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{DRQN}{结论}
+		\begin{itemize}
+				\item 在Standard Atari games中，DRQN的表现勉强比上DQN
+				\item 在Flickering Atari game中，DRQN表现下降的幅度比DQN小得多
+		\end{itemize}
+	
+		\visible<2->{但这样的结果远远不能让人满意……}
+	\end{frame}
+	
+	\section{用DRQN玩FPS游戏}
+
+	\begin{frame}{DRQN for FPS}{}
+		FPS即第一人称射击游戏(First person shooting games)，与Atari 2600相比，FPS游戏具有以下特点：
+	
+		\begin{itemize}
+			\item 操作更加复杂，行为更加丰富(搜索地图，收集道具，识别并打败敌人…)；
+			\item 画面只能观测到部分游戏状态(partially observable)；
+			\item FPS与现实场景相似，相关技术适合在机器人开发中得到应用。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DRQN for FPS}{VizDoom}
+		VizDoom是一个基于Doom的AI研究平台，主要针对面向原始视觉信息输入的增强学习。
+		
+		Doom Deathmatch规则介绍：
+		http://vizdoom.cs.put.edu.pl/
+		
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.8\linewidth]{pictures/deathmatch}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{DRQN for FPS}{Baseline DRQN model}
+		首先，直接利用原始的DRQN运用在ViZDoom上，效果并不好。
+		\begin{itemize}
+			\item 训练出的agent会随意开火；
+			\item 对使用弹药加以惩罚：如果惩罚过重，agent就不会开火；过轻，agent依然会随意开火。
+			\item agent不能够准确地探测敌人
+		\end{itemize}
+		
+	\end{frame}
+
+	\begin{frame}{DRQN for FPS}{Methods}
+		\begin{description}
+			\item[DRQN augmented with game features] 
+			使用了一个增加游戏信息(game features)的DRQN模型来提升性能。
+			
+			\item[Divide and conquer]
+			将游戏过程分为两个阶段分别训练，提升性能并加快了训练速度。
+			
+		\end{description}
+	\end{frame}
+
+	\begin{frame}{Methods}{DRQN augmented with game features-I}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/drqn-with-game-features}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{Methods}{DRQN augmented with game features-II}
+		\begin{itemize}
+			\item 训练时加入了当前画面的游戏状态信息作为输入;
+			
+			\item 网络的损失函数是DRQN的损失函数合并上交叉熵损失(cross-entropy loss)，同时训练DRQN和游戏状态信息的侦测，使卷积层也能够捕捉到与游戏相关的信息;
+			
+			\item 虽然可以获得许多游戏信息，但仅考虑画面中是否有敌人的信息，就能使模型的表现有显著的改进。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{Methods}{With vs without game features}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/with-game-features-result}
+			\caption{横轴：训练时间；纵轴：击杀死亡比}
+			\label{fig:with-game-features-result}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{Methods}{Divide and conquer-阶段划分}
+		Doom Deathmatch 游戏过程被分成两个阶段：导航阶段和行动阶段
+		\begin{description}
+			\item[导航阶段(the navigation)]  探索地图，收集，发现敌人
+			\item[行动阶段(the action)]：攻击敌人
+		\end{description}
+		
+		\visible<2->{	
+			当前游戏过程处何阶段由画面中是否有敌人来决定(game feature)。
+		}
+	
+	\end{frame}
+
+	\begin{frame}{Methods}{Divide and conquer-阶段示例}
+		\begin{columns}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/deathmatch-2}
+					\caption{导航阶段}
+					\label{fig:deathmatch-2}
+				\end{figure}
+			\end{column}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/deathmatch-3}
+					\caption{行动阶段}
+					\label{fig:deathmatch-3}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{Methods}{Divide and conquer-训练模型}
+		对不同的阶段，使用了不同的模型进行训练：
+		\begin{description}
+			\item[导航阶段] DQN
+			\item[行动阶段] DRQN with game features
+		\end{description}
+		
+		\visible<2->{
+			目前，DQN并不支持结合多个网络来优化不同的目标，但当前的游戏信息可以由改进的DRQN进行侦测。
+		}
+		
+	\end{frame}
+
+	\begin{frame}{Methods}{Divide and conquer-优点}
+		这样的分治策略带来许多优点：
+		\begin{itemize}
+			\item<2-> 两个网络可以并行训练，大大加快了模型训练速度。
+			\item<3-> 导航阶段只包含了三种操作：向左、向右和前进，大大减少了模型中state-action pairs的数量，进一步提高效率。
+			\item<4-> 相比使用单个网络训练，分治有效避免了agent的“蹲点”行为。
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{Divide and conquer}{Training: Reward shaping}
+		在Doom deathmatch中，游戏分数通过 击杀数/死亡数(K/D ratio) 进行计算。如果回馈只通过计算分数得到，那么DRQN训练时的replay table会非常稀疏，导致模型在训练时难以收敛。
+		
+		作者们采取了回馈共享(Reward shaping)的思路，修改回报函数，包含一些小的中间回报来加速学习过程。
+		
+	\end{frame}
+
+	\begin{frame}{Divide and conquer}{Training: Reward shaping-基本原则}
+		基于击杀给予正回馈，死亡基于负回馈的基础上，增加了以下中间回馈
+		\begin{description}
+			\item[行动网络] 
+				\begin{itemize}
+					\item 拾取物品，正回馈
+					\item 失去生命值，负回馈
+					\item 开枪射击导致弹药减少，负回馈
+				\end{itemize}
+			\item [导航网络]
+				\begin{itemize}
+					\item 拾取物品，正回馈
+					\item 在岩浆上行走，负回馈
+					\item 移动距离，正回馈  ——有利于让agent更快速地探索地图
+				\end{itemize}
+		\end{description}
+	\end{frame}
+
+	\begin{frame}{Experiments: Visual Doom AI Competition}{赛制}
+		赛制分两种：
+		\begin{itemize}
+			\item 已知地图上的受限制死亡竞赛(Limited Deathmatch)：武器只有火箭炮，agent可以捡血包和弹药；
+			
+			\item 未知地图上的的无限制死亡竞赛(Limited Deathmatch)：agent初始只有手枪，可以捡各种武器弹药和血包。提供了两张地图用于训练，3张未知地图用于测试。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{实验结果}{Performance of the agent with/without navigation}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-1}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{实验结果}{Visual Doom AI Competition @ CIG 2016}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-2}
+		\end{figure}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-3}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{实验结果}{Comparison of human players with agent}
+		\begin{columns}
+			\begin{column}{.5\linewidth}
+				\begin{description}
+					\item[Single player] 人类和agent分别在独立的游戏中与机器人较量
+					
+					\item[Multiplayer] 人类与agent相互切磋
+					
+				\end{description}
+			\end{column}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-4}
+					\caption{}
+					\label{fig:fps-exper-result-4}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{实验结果}{2017 Competition Results}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-5}
+		\end{figure}
+		
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-6}
+		\end{figure}
+	\end{frame}
+		
 	\section*{参考文献}
 	
 	\begin{frame}{参考文献}
