@@ -4,6 +4,7 @@
 \usepackage{tikz}
 \usepackage{subfigure}
 \usepackage{color}
+\usepackage{media9}
 \usepackage[ruled,linesnumbered,titlenotnumbered,vlined]{algorithm2e}
 \usetikzlibrary{arrows,automata}
 
@@ -35,10 +36,13 @@
 	}
 
 	\begin{frame}{总目录}
-		第\ref{part:rl-and-planning}部分~强化学习与规划（张舒韬）\\
-		第\ref{part:her}部分~事后经验回放（刘翔）\\
-		第\ref{part:dqn}部分~Deep Q Network（赵倩隆）\\
-		第\ref{part:fps}部分~DRQN与FPS游戏（吴江恒）\\
+		\begin{description}
+			\item[第\ref{part:rl-and-planning}部分] 强化学习与规划（张舒韬）
+			\item[第\ref{part:her}部分] 事后经验回放（刘翔）
+			\item[第\ref{part:dqn}部分] Deep Q-Networks（赵倩隆）
+			\item[第\ref{part:fps}部分] DRQN与FPS游戏（吴江恒）
+		\end{description}
+		
 	\end{frame}
 
 	\part{强化学习与规划}\label{part:rl-and-planning}
@@ -257,14 +261,18 @@
 	\end{frame}
 
 	\begin{frame}{Dyna}{错误的模型-原因}
-		模型出错的原因：
 		\begin{itemize}
-			\item 先验知识存在错误
-			\item 随机环境难以用模型描述或估计
-			\item 环境出现变化
+			\item 模型出错的原因：
+				\begin{itemize}
+					\item 先验知识存在错误
+					\item 随机环境难以用模型描述或估计
+					\item 环境出现变化
+				\end{itemize}
+			\item 处理方法：
+				\begin{itemize}
+					\item 学习过程中不断使用从环境中获得的数据对模型进行更新和纠正
+				\end{itemize}
 		\end{itemize}
-		
-		处理方法：学习过程中不断使用从环境中获得的数据对模型进行更新和纠正
 	\end{frame}
 	
 	\begin{frame}{Dyna}{错误的模型-实验}
@@ -415,18 +423,17 @@
 
 	\begin{frame}{相关算法}{经验回放（Experience Replay）}
 		\begin{itemize}
-			\item 对于不可枚举状态的环境（如连续的状态空间），一般采用值函数逼近（Value Function Approxiamation）来拟合和泛化Q函数。
+			\item<2-> 对于不可枚举状态的环境（如连续的状态空间），一般采用值函数逼近（Value Function Approxiamation）来拟合和泛化Q函数。
 			
-			\item 经验回放（Experience replay）是从一个memory pool中随机选取expeirence更新网络。
+			\item<3-> 经验回放是从一个经验池（memory pool）中随机选取经验更新网络。
 			
-			\item DQN是基于监督学习的框架，而loss function基于RL，因此会有这样的问题：监督学习需要假设样本是独立同分布，而RL中的强序列关联性不符合这个假设。如果没有experience replay，可能会出现不收敛的情况；
+			\item<4-> Deep Q-Networks\cite{Hasselt16:DQN}是基于监督学习的框架，而loss function基于RL，因此会有这样的问题：监督学习需要假设样本是独立同分布，而RL中的强序列关联性不符合这个假设。如果没有经验回放，可能会出现不收敛的情况；
 			
-			\item 采用Experience Replay，会缓和样本的关联性。其优点包括：
+			\item<5-> 采用经验回放，会缓和样本的关联性。其优点包括：
 				\begin{enumerate}
 					\item 算法收敛；
 					\item 提高泛化能力;
 				\end{enumerate}
-			
 		\end{itemize}
 	\end{frame}
 
@@ -434,7 +441,7 @@
 		\begin{itemize}
 			\item<2-> DQN是一个面向离散控制的算法，即输出的动作是离散的；
 			
-			\item<3-> 深度确定性策略梯度（Deep Deterministic Policy Gradient， DDPG）算法是利用 DQN 扩展 Q 学习算法的思路对确定性策略梯度（Deterministic Policy Gradient， DPG）方法进行改造，提出的一种基于行动者-评论家（Actor-Critic，AC）框架的算法，该算法可用于解决连续动作空间上的 DRL 问题。
+			\item<3-> 深度确定性策略梯度（Deep Deterministic Policy Gradient，DDPG）算法\cite{Chou17:DDPG}是利用 DQN 扩展 Q 学习算法的思路对确定性策略梯度（Deterministic Policy Gradient， DPG）方法进行改造，提出的一种基于行动者-评论家（Actor-Critic，AC）框架的算法，该算法可用于解决连续动作空间上的 DRL 问题。
 			
 			\item<4-> 随机性策略和确定性策略：
 				\begin{description}
@@ -508,14 +515,16 @@
 			\item<4-> 在更为复杂的环境中，设置一个有效的合适的回报函数有时会比较困难；因此本文目的是设计一个更为普遍的通用于多种环境中的方法，而不要有针对环境的特定领域知识。
 			
 		\end{itemize}
+	
+		\visible<5->{事后经验回放（Hind Experience Replay，HER）\cite{Andrychowicz17:HER}}
 	\end{frame}
 
-	\begin{frame}{HER}{多目标强化学习（Multi-goal RL ）}
+	\begin{frame}{HER}{多目标强化学习（Multi-goal RL）}
 		\begin{itemize}
-			\item 训练agent能够学会到达多个目标点；
+			\item<2-> 训练agent能够学会到达多个目标点；
 				\[f_g \left( (x,y) \right) =  \sgn(s=g) \]
 			
-			\item 使用Universal Value Function Approximators，在训练policy和value function的过程中，将state $s$和目标$g$作为输入；
+			\item<3-> 使用Universal Value Function Approximators，在训练policy和value function的过程中，将state $s$和目标$g$作为输入；
 		\end{itemize}
 		
 	\end{frame}
@@ -548,7 +557,7 @@
 				Experience Replay： 将状态转移$s_t \rightarrow s_{t+1}$以$(s_t ||g,a_t,r_t,s_{t+1}||g)$形式保存到replay buffer中\;
 			}
 			利用replay buffer 进行更新已有策略A\;
-			\caption{事后经验回放算法（Hind Experience Replay，HER）}\label{alg:her}
+			\caption{事后经验回放算法}\label{alg:her}
 		\end{algorithm}
 	\end{frame}
 	
@@ -562,7 +571,7 @@
 			\item 可用一个物理引擎模拟机器人的控制和反馈
 				\begin{figure}
 					\centering
-					\includegraphics[width=0.7\linewidth]{pictures/her-robot}
+					\includegraphics[width=0.8\linewidth]{pictures/her-robot}
 					\caption{三种不同的任务：pushing（第一行），sliding（第二行），pick and place（第三行）}
 					\label{fig:her-robot}
 				\end{figure}
@@ -572,12 +581,11 @@
 
 	\begin{frame}{实验}{三种任务}
 		\begin{description}
-			\item[Pushing] 一个盒子置于平台上，任务是让机械臂将它推到平台的目标区域；在此过程中，机械臂的手指会被锁住不允许抓取盒子；学习到的行为可以视为推和翻转的混合动作；
+			\item[Pushing]<2-> 一个盒子置于平台上，任务是让机械臂将它推到平台的目标区域；在此过程中，机械臂的手指会被锁住不允许抓取盒子；学习到的行为可以视为推和翻转的混合动作；
 			
-			\item[Sliding] 一个冰球置于一个长而光滑的平台上，目标位置在机械臂所能到达的位置之外，所以需要它以某种程度的力量击打冰球让它最终到达目标点；
+			\item[Sliding]<3-> 一个冰球置于一个长而光滑的平台上，目标位置在机械臂所能到达的位置之外，所以需要它以某种程度的力量击打冰球让它最终到达目标点；
 			
-			
-			\item[Pick-and-place] 类似pushing任务，不同的是目标点是在空中某个位置并且机械臂收不会被锁住可以抓取物体；
+			\item[Pick-and-place]<4-> 类似pushing任务，不同的是目标点是在空中某个位置并且机械臂收不会被锁住可以抓取物体；
 			
 		\end{description}
 	\end{frame}
@@ -600,7 +608,7 @@
 	\begin{frame}{实验结果}{多目标学习结果}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.7\linewidth]{pictures/multi-goal-expr}
+			\includegraphics[width=0.9\linewidth]{pictures/multi-goal-expr}
 			\caption{多目标学习曲线}
 			\label{fig:multi-goal-expr}
 		\end{figure}
@@ -610,7 +618,7 @@
 	\begin{frame}{实验结果}{单目标学习结果}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.7\linewidth]{pictures/single-goal-expr}
+			\includegraphics[width=0.9\linewidth]{pictures/single-goal-expr}
 			\caption{单目标学习曲线}
 			\label{fig:single-goal-expr}
 		\end{figure}
@@ -620,7 +628,7 @@
 	\begin{frame}{实验结果}{Reward Shaping 结果}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.7\linewidth]{pictures/reward-shape-expr}
+			\includegraphics[width=0.9\linewidth]{pictures/reward-shape-expr}
 			\caption{变更奖励函数后的学习曲线，其中$r(s,a,g) = -|g-s'_{object}|^2$}
 			\label{fig:reward-shape-expr}
 		\end{figure}
@@ -694,10 +702,11 @@
 	\section{结论}
 	
 	\begin{frame}{结论}
+		本文的工作包括：
 		\begin{enumerate}
-			\item 提出了HER算法，能够将强化学习方法应用到稀疏回报值的问题中；
-			\item HER算法具有很强的通用性，能够结合任意的off-policy RL算法，在实验中结合的是DQN和DDPG方法；
-			\item 在实验中，将HER算法应用到让机器臂完成不同的移动物品的任务上，展示了突出的效果。
+			\item<2-> 提出了HER算法，能够将强化学习方法应用到稀疏回报值的问题中；
+			\item<3-> HER算法具有很强的通用性，能够结合任意的off-policy RL算法，在实验中结合的是DQN和DDPG方法；
+			\item<4-> 在实验中，将HER算法应用到让机器臂完成不同的移动物品的任务上，展示了突出的效果。
 		\end{enumerate}
 	\end{frame}
 		
@@ -779,7 +788,7 @@
 %		\end{algorithm}
 %	\end{frame}
 	
-	\section{DQN}
+	\section{Deep Q-Neworks}
 	
 	\subsection{研究DQN的动机和挑战}
 	
@@ -809,15 +818,16 @@
 	\subsection{DQN的主要思想}
 
 	\begin{frame}{DQN}{Main Idea of DQN-I}
+		Deep Q-Networks\cite{Hasselt16:DQN}的主要思想如下：
 		\begin{itemize}
-			\item 训练一个参数为$\theta$的卷积神经网络来估计值函数
+			\item<2-> 训练一个参数为$\theta$的卷积神经网络来估计值函数
 			
-			\item 使用经验回放来减少数据间的相关性，平缓数据分布的变化
+			\item<3-> 使用经验回放来减少数据间的相关性，平缓数据分布的变化
 			
-			\item 使用两个网络target Q以及Q网络，两个网络结构一样，参数不同。target Q网络的参数$\theta_i^-$，是Q网络的参数$\theta_i$的历史版本。Q网络的作用是在每次迭代𝑖中改变参数$\theta_i$，估计值函数。target Q网络的作用是给出每次迭代$i$中的估计目标
+			\item<4-> 使用两个网络target Q以及Q网络，两个网络结构一样，参数不同。target Q网络的参数$\theta_i^-$，是Q网络的参数$\theta_i$的历史版本。Q网络的作用是在每次迭代$i$中改变参数$\theta_i$，估计值函数。target Q网络的作用是给出每次迭代$i$中的估计目标
 			\[y_i = E_(s' \in \epsilon)[r + \gamma \max_{a'} target\_Q(s',a',\theta_i^-)] \]
 			
-			\item 每次迭代𝑖的损失函数可以表示为
+			\item<5-> 每次迭代$i$的损失函数可以表示为
 			\[L_i(\theta_i) = E_{s,a,r,s'}[(y_i - Q(s,a| \theta_i))^2] \]
 			
 		\end{itemize}
@@ -825,17 +835,17 @@
 
 	\begin{frame}{DQN}{Main Idea of DQN-II}
 		\begin{itemize}
-			\item target Q网络使用Q网络的参数$\theta_i$的历史版本能够平缓数据分布的变化
+			\item<2-> target Q网络使用Q网络的参数$\theta_i$的历史版本能够平缓数据分布的变化
 			
-			\item 第$i$次迭代的损失函数为
+			\item<3-> 第$i$次迭代的损失函数为
 			\[L_i(\theta_i)=E_{s,a,r,s'}[(r + \gamma \max_{a'}target\_Q(s',a',\theta_i^-) - Q(s,a,\theta_i))^2] \]
 			
-			\item 更新梯度为
+			\item<4-> 更新梯度为
 				\begin{small}
 					\[\nabla_{\theta_i}L_i(\theta_I) = E_{s,a,r,s'}[(r + \gamma \max_{a'} target\_Q(s',a'|\theta_i^-) - Q(s,a|\theta_i))\nabla_{\theta_i}Q(s,a|\theta_i)] \]
 				\end{small}
 			
-			\item 与Q-learning相比
+			\item<5-> 与Q-learning相比
 			\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
 			
 		\end{itemize}
@@ -844,7 +854,7 @@
 	\begin{frame}{DQN}{网络结构}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.8\linewidth]{pictures/dqn-architecture}
+			\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture}
 			\caption{DQN网络的结构}
 			\label{fig:dqn-architecture}
 		\end{figure}
@@ -855,11 +865,11 @@
 
 	\begin{frame}{DQN}{经验回放}
 		\begin{itemize}
-			\item 维持一个数量有限的经验池$D=e_1,\dots,e_t$
+			\item<2-> 维持一个容量有限的经验池$D=e_1,\dots,e_t$
 			
-			\item 每次agent在时间$t$行动后获得的经验$e_t = (s_t,a_t,r_t,s_{t+1})$存入经验池$D$中
+			\item<3-> 每次agent在时间$t$行动后获得的经验$e_t = (s_t,a_t,r_t,s_{t+1})$存入经验池$D$中
 			
-			\item 在训练时，随机地从经验池$D$中选择经验$e_t$来训练网络
+			\item<4-> 在训练时，随机地从经验池$D$中选择经验$e_t$来训练网络
 			
 		\end{itemize}
 	\end{frame}
@@ -874,14 +884,14 @@
 	\begin{frame}{DQN-ER}{实验结果-I}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.7\linewidth]{pictures/drqn-expr-result-tab}
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-expr-result-tab}
 		\end{figure}	
 	\end{frame}
 
 	\begin{frame}{DQN-ER}{实验结果-II}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.7\linewidth]{pictures/drqn-expr-result-chart}
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-expr-result-chart}
 		\end{figure}
 		
 	\end{frame}
@@ -890,14 +900,16 @@
 	
 	\section{DRQN}
 	
+	\subsection{DRQN结构介绍}
+	
 	\begin{frame}{Deep Q-Network 回顾}
 		\begin{columns}
 			\begin{column}{.6\linewidth}
 				\begin{itemize}
-					\item 前面提到，DQN在Atari游戏中，有能力学习到不输人类的控制策略。
-					\item 它仅仅将游戏最近4帧的原始画面作为输入，就使agent在Atari游戏中有了能与人类相抗衡的表现。
-					\item 但是，DQN在需要记忆\alert{超过最近4帧}画面的游戏中表现不佳，这类游戏未来的state和reward不仅依赖于当前输入的画面，还依赖于更早画面中的信息。
-					\item 上述现象是一种 Partially-Observable Markov Decision Process (POMDP)。
+					\item<2-> 前面提到，DQN在Atari游戏中，有能力学习到不输人类的控制策略。
+					\item<3-> 它仅仅将游戏最近4帧的原始画面作为输入，就使agent在Atari游戏中有了能与人类相抗衡的表现。
+					\item<4-> 但是，DQN在需要记忆\alert{超过最近4帧}画面的游戏中表现不佳，这类游戏未来的state和reward不仅依赖于当前输入的画面，还依赖于更早画面中的信息。
+					\item<5-> 上述现象是一种 Partially-Observable Markov Decision Process (POMDP)。
 				\end{itemize}
 			\end{column}
 			\begin{column}{.4\linewidth}
@@ -941,11 +953,11 @@
 			\begin{column}{.6\linewidth}
 				与DQN相比，DRQN:
 				\begin{itemize}
-					\item 将原本的全连接层替换为相同维度的Long-Short Term Memory (LSTM).
+					\item<2-> 将原本的全连接层替换为相同维度的Long-Short Term Memory (LSTM).
 					
-					\item 每一个timestep只接受一帧画面作为输入。
+					\item<3-> 每一个timestep只接受一帧画面作为输入。
 					
-					\item LSTM为过去的状态提供记忆能力。
+					\item<4-> LSTM为过去的状态提供记忆能力。
 					
 				\end{itemize}
 			\end{column}
@@ -976,16 +988,18 @@
 		\end{itemize}
 	\end{frame}
 
+	\subsection{DRQN vs. DQN}
+
 	\begin{frame}{DRQN}{实验：DRQN vs DQN}
 		\begin{itemize}
-			\item 比较对象：
+			\item<2-> 比较对象：
 				\begin{itemize}
 					\item DRQN；
 					\item 扩展DQN（将普通DQN的输入扩展到10张图片）；
 					\item DQN.
 				\end{itemize}
 			
-			\item 实验目标：
+			\item<3-> 实验目标：
 				\begin{itemize}
 					\item Standard Atari games
 					\item Flickering Atari games
@@ -1028,7 +1042,9 @@
 		\end{columns}
 	\end{frame}
 
-	\begin{frame}{DRQN}{Results: Flickering Atari games}
+	\begin{frame}{DRQN}{Results: Flickering Atari 
+	
+}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/flickering-atari-result}
@@ -1041,7 +1057,7 @@
 	\begin{frame}{DRQN}{结论}
 		\begin{itemize}
 				\item 在Standard Atari games中，DRQN的表现勉强比上DQN
-				\item 在Flickering Atari game中，DRQN表现下降的幅度比DQN小得多
+				\item 在Flickering Atari games中，DRQN表现下降的幅度比DQN小得多
 		\end{itemize}
 	
 		\visible<2->{但这样的结果远远不能让人满意……}
@@ -1050,12 +1066,12 @@
 	\section{用DRQN玩FPS游戏}
 
 	\begin{frame}{DRQN for FPS}
-		FPS即第一人称射击游戏(First person shooting games)，与Atari 2600相比，FPS游戏具有以下特点：
-	
+		FPS即第一人称射击游戏(First person shooting games)，与Atari 2600相比，FPS游戏具有以下特点\cite{Lample17:RL4FPS}：
+	 
 		\begin{itemize}
-			\item 操作更加复杂，行为更加丰富(搜索地图，收集道具，识别并打败敌人…)；
-			\item 画面只能观测到部分游戏状态(partially observable)；
-			\item FPS与现实场景相似，相关技术适合在机器人开发中得到应用。
+			\item<2-> 操作更加复杂，行为更加丰富(搜索地图，收集道具，识别并打败敌人…)；
+			\item<3-> 画面只能观测到部分游戏状态(partially observable)；
+			\item<4-> FPS与现实场景相似，相关技术适合在机器人开发中得到应用。
 		\end{itemize}
 	\end{frame}
 
@@ -1074,9 +1090,9 @@
 	\begin{frame}{DRQN for FPS}{Baseline DRQN model}
 		首先，直接利用原始的DRQN运用在ViZDoom上，效果并不好。
 		\begin{itemize}
-			\item 训练出的agent会随意开火；
-			\item 对使用弹药加以惩罚：如果惩罚过重，agent就不会开火；过轻，agent依然会随意开火。
-			\item agent不能够准确地探测敌人
+			\item<2-> 训练出的agent会随意开火；
+			\item<3-> 对使用弹药加以惩罚：如果惩罚过重，agent就不会开火；过轻，agent依然会随意开火。
+			\item<4-> agent不能够准确地探测敌人
 		\end{itemize}
 		
 	\end{frame}
@@ -1092,7 +1108,9 @@
 		\end{description}
 	\end{frame}
 
-	\begin{frame}{Methods}{DRQN augmented with game features-I}
+	\subsection{添加游戏特征}
+
+	\begin{frame}{添加游戏特征}{网络结构}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.9\linewidth]{pictures/drqn-with-game-features}
@@ -1100,17 +1118,17 @@
 		
 	\end{frame}
 
-	\begin{frame}{Methods}{DRQN augmented with game features-II}
+	\begin{frame}{添加游戏特征}{游戏特征}
 		\begin{itemize}
-			\item 训练时加入了当前画面的游戏状态信息作为输入;
+			\item<2-> 训练时加入了当前画面的游戏状态信息作为输入;
 			
-			\item 网络的损失函数是DRQN的损失函数合并上交叉熵损失(cross-entropy loss)，同时训练DRQN和游戏状态信息的侦测，使卷积层也能够捕捉到与游戏相关的信息;
+			\item<3-> 网络的损失函数是DRQN的损失函数合并上交叉熵损失(cross-entropy loss)，同时训练DRQN和游戏状态信息的侦测，使卷积层也能够捕捉到与游戏相关的信息;
 			
-			\item 虽然可以获得许多游戏信息，但仅考虑画面中是否有敌人的信息，就能使模型的表现有显著的改进。
+			\item<4-> 虽然可以获得许多游戏信息，但仅考虑画面中是否有敌人的信息，就能使模型的表现有显著的改进。
 		\end{itemize}
 	\end{frame}
 
-	\begin{frame}{Methods}{With vs without game features}
+	\begin{frame}{添加游戏特征}{实验结果}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/with-game-features-result}
@@ -1119,7 +1137,9 @@
 		\end{figure}
 	\end{frame}
 
-	\begin{frame}{Methods}{Divide and conquer-阶段划分}
+	\subsection{分治}
+	
+	\begin{frame}{分治}{阶段划分}
 		Doom Deathmatch 游戏过程被分成两个阶段：导航阶段和行动阶段
 		\begin{description}
 			\item[导航阶段(the navigation)]  探索地图，收集，发现敌人
@@ -1132,7 +1152,7 @@
 	
 	\end{frame}
 
-	\begin{frame}{Methods}{Divide and conquer-阶段示例}
+	\begin{frame}{分治}{阶段示例}
 		\begin{columns}
 			\begin{column}{.5\linewidth}
 				\begin{figure}
@@ -1154,7 +1174,7 @@
 		\end{columns}
 	\end{frame}
 
-	\begin{frame}{Methods}{Divide and conquer-训练模型}
+	\begin{frame}{分治}{训练模型}
 		对不同的阶段，使用了不同的模型进行训练：
 		\begin{description}
 			\item[导航阶段] DQN
@@ -1167,7 +1187,7 @@
 		
 	\end{frame}
 
-	\begin{frame}{Methods}{Divide and conquer-优点}
+	\begin{frame}{分治}{优点}
 		这样的分治策略带来许多优点：
 		\begin{itemize}
 			\item<2-> 两个网络可以并行训练，大大加快了模型训练速度。
@@ -1177,23 +1197,23 @@
 		\end{itemize}
 	\end{frame}
 
-	\begin{frame}{Divide and conquer}{Training: Reward shaping}
+	\begin{frame}{分治}{Training: Reward shaping}
 		在Doom deathmatch中，游戏分数通过 击杀数/死亡数(K/D ratio) 进行计算。如果回馈只通过计算分数得到，那么DRQN训练时的replay table会非常稀疏，导致模型在训练时难以收敛。
 		
 		作者们采取了回馈共享(Reward shaping)的思路，修改回报函数，包含一些小的中间回报来加速学习过程。
 		
 	\end{frame}
 
-	\begin{frame}{Divide and conquer}{Training: Reward shaping-基本原则}
+	\begin{frame}{分治}{Training: Reward shaping-基本原则}
 		基于击杀给予正回馈，死亡给予负回馈的基础上，增加了以下中间回馈
 		\begin{description}
-			\item[行动网络] 
+			\item[行动网络]<2->
 				\begin{itemize}
 					\item 拾取物品，正回馈
 					\item 失去生命值，负回馈
 					\item 开枪射击导致弹药减少，负回馈
 				\end{itemize}
-			\item [导航网络]
+			\item [导航网络]<3->
 				\begin{itemize}
 					\item 拾取物品，正回馈
 					\item 在岩浆上行走，负回馈
@@ -1202,7 +1222,7 @@
 		\end{description}
 	\end{frame}
 
-	\begin{frame}{Experiments: Visual Doom AI Competition}{赛制}
+	\begin{frame}{实验}{Visual Doom AI Competition赛制}
 		赛制分两种：
 		\begin{itemize}
 			\item 已知地图上的受限制死亡竞赛(Limited Deathmatch)：武器只有火箭炮，agent可以捡血包和弹药；
@@ -1259,10 +1279,26 @@
 			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-6}
 		\end{figure}
 	\end{frame}
+
+	\subsection{视频}
+
+	\begin{frame}{AI for FPS}{视频}
+		\centering
+		\includemedia[
+		activate=onclick, % default
+		addresource=pictures/fps.mp4,
+		flashvars={
+			source=pictures/fps.mp4
+			&autoPlay=false % start playing on activation
+			&loop=false
+		},
+		passcontext %show player’s right-click menu
+		]{\includegraphics[width=.8\linewidth]{pictures/deathmatch-poster}}{VPlayer9.swf}
+	\end{frame}
 		
 	\section*{参考文献}
 	
-	\begin{frame}{参考文献}
+	\begin{frame}[allowframebreaks]{参考文献}
 		\bibliographystyle{apalike}
 		\bibliography{reference}
 	\end{frame}
