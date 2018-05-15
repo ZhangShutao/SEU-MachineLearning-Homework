@@ -4,7 +4,7 @@
 \usepackage{tikz}
 \usepackage{subfigure}
 \usepackage{color}
-\usepackage[ruled,linesnumbered,titlenotnumbered,noend,vlined]{algorithm2e}
+\usepackage[ruled,linesnumbered,titlenotnumbered,vlined]{algorithm2e}
 \usetikzlibrary{arrows,automata}
 
 \renewcommand{\thealgocf}{}
@@ -35,10 +35,10 @@
 	}
 
 	\begin{frame}{总目录}
-		第I部分 强化学习与规划
-		\tableofcontents[part=1]
-		第II部分 强化学习在FPS游戏中的应用
-		\tableofcontents[part=2]
+		第\ref{part:rl-and-planning}部分~强化学习与规划（张舒韬）\\
+		第\ref{part:her}部分~事后经验回放（刘翔）\\
+		第\ref{part:dqn}部分~Deep Q Network（赵倩隆）\\
+		第\ref{part:fps}部分~DRQN与FPS游戏（吴江恒）\\
 	\end{frame}
 
 	\part{强化学习与规划}\label{part:rl-and-planning}
@@ -371,6 +371,8 @@
 	
 	\section{相关背景}
 	
+	\subsection{简介}
+	
 	\begin{frame}{相关背景}{简介}
 		\begin{itemize}
 			\item<2-> 强化学习（RL）与神经网络的结合被广泛应用于序列决策问题中；
@@ -391,7 +393,7 @@
 				\draw (0,0) rectangle (6cm, 4cm);
 				\draw [draw=white] (4,3.5) node {Target Area};
 				\draw (4,2) circle [radius=.75cm];
-				\fill (1,2.5) circle [radius=.05cm,fill=black];
+				\fill (1,2.5) circle [radius=.1cm,fill=black];
 				\draw [->,>=stealth,draw=red] (1,2.5) -- (4,0.5);
 				
 				\visible<2->{\draw(4,1) circle [radius=.75cm];}
@@ -400,7 +402,9 @@
 		\end{figure}
 	\end{frame}
 
-	\begin{frame}{相关背景}{Deep Q-Networks(DQN)}
+	\subsection{涉及的算法}
+
+	\begin{frame}{相关算法}{Deep Q-Networks(DQN)}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.4\linewidth]{pictures/DQN}
@@ -409,7 +413,7 @@
 		\end{figure}
 	\end{frame}
 
-	\begin{frame}{相关背景}{经验回放（Experience Replay）}
+	\begin{frame}{相关算法}{经验回放（Experience Replay）}
 		\begin{itemize}
 			\item 对于不可枚举状态的环境（如连续的状态空间），一般采用值函数逼近（Value Function Approxiamation）来拟合和泛化Q函数。
 			
@@ -450,10 +454,10 @@
 		\end{itemize}
 	\end{frame}
 	
-	\section{事后经验回放（HER）}
+	\section{事后经验回放}
 	
 	\begin{frame}{HER}{启发案例-I}
-		\begin{example}
+		\begin{example}[比特转换]
 			\begin{columns}
 				\begin{column}{0.5\textwidth}
 					\begin{itemize}
@@ -533,19 +537,24 @@
 		\end{figure}
 	
 		\begin{algorithm}[H]
-			A episode: $s_0,s_1,s_2,…, s_T$\;
+			\KwIn{周期$s_0,s_1,s_2,…, s_T$}
 			
-			\ForEach{Time-stem $t$}{
+			\For{$t=0\text{ to }T-1$}{
 				使用现有的策略A，从中选取一个action$a_t$，即$a_t \gets \pi_b (s_t ||g)$\;
+				执行动作$a_t$，观测下一个状态\;
+			}
+			\For{$t=0\text{ to }T-1$}{
 				计算reward值：$r_t=r(s_t,a_t,g)$\;
-				Experience Replay： 将状态转移$s_t \rightarrow s_(t+1)$以$(s_t ||g,a_t,r_t,s_(t+1)||g)$形式保存到replay buffer中\;
+				Experience Replay： 将状态转移$s_t \rightarrow s_{t+1}$以$(s_t ||g,a_t,r_t,s_{t+1}||g)$形式保存到replay buffer中\;
 			}
 			利用replay buffer 进行更新已有策略A\;
-			\caption{事后经验回放算法}\label{alg:her}
+			\caption{事后经验回放算法（Hind Experience Replay，HER）}\label{alg:her}
 		\end{algorithm}
 	\end{frame}
 	
 	\section{实验}
+	
+	\subsection{实验任务、环境与模型}
 	
 	\begin{frame}{实验}{环境}
 		\begin{itemize}
@@ -563,29 +572,32 @@
 
 	\begin{frame}{实验}{三种任务}
 		\begin{description}
-			\item[Pushing] A box is placed on a table in front of the robot and the task is to move it to the target location on the table. The robot fingers are locked to prevent grasping. The learned behavior is a mixture of pushing and rolling.
+			\item[Pushing] 一个盒子置于平台上，任务是让机械臂将它推到平台的目标区域；在此过程中，机械臂的手指会被锁住不允许抓取盒子；学习到的行为可以视为推和翻转的混合动作；
 			
-			\item[Sliding] A puck is placed on a long slippery table and the target position is outside of the robot’s reach so that it has to hit the puck with such a force that it slides and then stops in the appropriate place due to friction.
+			\item[Sliding] 一个冰球置于一个长而光滑的平台上，目标位置在机械臂所能到达的位置之外，所以需要它以某种程度的力量击打冰球让它最终到达目标点；
 			
-			\item[Pick-and-place] The target position is in the air and the fingers are not locked. 
+			
+			\item[Pick-and-place] 类似pushing任务，不同的是目标点是在空中某个位置并且机械臂收不会被锁住可以抓取物体；
 			
 		\end{description}
 	\end{frame}
 
 	\begin{frame}{实验}{模型}
 		\begin{description}
-			\item[States] The state of the system is represented in the MuJoCo physics engine and consists of angles and velocities of all robot joints as well as positions, rotations and velocities (linear and angular) of all objects.
+			\item[States] 状态空间会由模拟实验中的物理引擎来表示，主要包括机械臂的角度、速度以及物体的位置、旋转和速度（线性速度和角速度）等；
 			
-			\item[Goals] Goals describe the desired position of the object (a box or a puck depending on the task) with some fixed tolerance of $\epsilon$, i.e. , $f_g(s) = \sgn(g-s_{object} \leq \epsilon)$. 
+			\item[Goals] 目标是指想要物体（根据实验任务，可以是盒子或者是冰球）到达的位置 ，容许有一定的误差$\epsilon$, 即$f_g(s) = \sgn(g-s_{object} \leq \epsilon)$. 
 			
-			\item[Rewards] Use binary and sparse rewards $\{−1,0\}$;
+			\item[Rewards] 使用二进制和稀疏回报$\{−1,0\}$：到达目标状态则为0，否则均为-1；
 			
-			\item[State-goal distributions] For all tasks the initial position of the gripper is fixed, while the initial position of the object and the target are randomized;
+			\item[State-goal] 对于所有的任务，机械臂的初始位置是固定的，需要移动物体的初始位置以及终点位置是随机选取；
 			
 		\end{description}
 	\end{frame}
 	
-	\begin{frame}{实验}{多目标学习结果}
+	\subsection{实验结果}
+	
+	\begin{frame}{实验结果}{多目标学习结果}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/multi-goal-expr}
@@ -595,7 +607,7 @@
 		
 	\end{frame}
 
-	\begin{frame}{实验}{单目标学习结果}
+	\begin{frame}{实验结果}{单目标学习结果}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/single-goal-expr}
@@ -605,7 +617,7 @@
 		
 	\end{frame}
 
-	\begin{frame}{实验}{奖励函数变更结果}
+	\begin{frame}{实验结果}{Reward Shaping 结果}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/reward-shape-expr}
@@ -613,6 +625,70 @@
 			\label{fig:reward-shape-expr}
 		\end{figure}
 		
+	\end{frame}
+
+	\subsection{算法改进}
+
+	\begin{frame}{算法改进}
+		\begin{algorithm}[H]
+			\KwIn{周期$s_0,s_1,s_2,…, s_T$}
+			
+			\For{$t=0\text{ to }T-1$}{
+				使用现有的策略A，从中选取一个action$a_t$，即$a_t \gets \pi_b (s_t ||g)$\;
+				执行动作$a_t$，观测下一个状态\;
+			}
+			\For{$t=0\text{ to }T-1$}{
+				计算reward值：$r_t=r(s_t,a_t,g)$\;
+				Experience Replay： 将状态转移$s_t \rightarrow s_{t+1}$以$(s_t ||g,a_t,r_t,s_{t+1}||g)$形式保存到replay buffer中\;
+				\textcolor{red}{
+					按照策略$S(s_0,s_1,\dots,s_t)$，从中选取额外的目标，记为集合$G$\;
+					\For{$g' \in G$}{
+						$r'\gets r(s_t,a_t,g')$\;
+						将$(s_t ||g',a_t,r',s_{t+1}||g')$保存到replay buffer\;
+					}
+				}
+			}
+			利用replay buffer 进行更新已有策略A\;
+			\caption{改进的事后经验回放算法}\label{alg:adv-her}
+		\end{algorithm}
+	\end{frame}
+
+	\begin{frame}{算法改进}{选择目标的不同方法的效果-均值}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/her-with-additional-goals}
+			\caption{横轴为回放时使用的额外目标的数量}
+			\label{fig:her-with-additional-goals}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{算法改进}{选择目标的不同方法的效果-最大值}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/her-with-additional-goals-highest}
+			\caption{横轴为回放时使用的额外目标的数量}
+			\label{fig:her-with-additional-goals-highest}
+		\end{figure}
+	
+	\end{frame}
+
+	\begin{frame}{算法改进}{选择目标的不同方法的效果-平均成功比率}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/her-with-additional-goals-avg-success}
+			\caption{横轴为回放时使用的额外目标的数量}
+			\label{fig:her-with-additional-goals-avg-success}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{实验}{硬件机器人}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/physical-robot}
+			\caption{在硬件机器人上执行pick-and-place策略}
+			\label{fig:physical-robot}
+		\end{figure}
 	\end{frame}
 
 	\section{结论}
@@ -625,8 +701,7 @@
 		\end{enumerate}
 	\end{frame}
 		
-
-	\part{DQN 与 DRQN}
+	\part{Deep Q Network}\label{part:dqn}
 	
 	\section{背景知识}
 	
@@ -646,7 +721,6 @@
 						\item 期望累积奖励
 						\[R_t=\sum\nolimits_{t=t'}^{T}\gamma^{t-t'}r_{t'} \]
 					\end{itemize}
-					%\item 马尔科夫决策过程 % 这个在这里是干啥的？
 				\end{itemize}
 			\end{column}
 			\begin{column}{.2\linewidth}
@@ -668,44 +742,46 @@
 		\end{figure}
 	\end{frame}
 
-	\begin{frame}{背景知识}{Q-Learning}
-		\begin{itemize}
-			\item $Q^{\pi}(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用策略$\pi$所得到的累计奖励
-			\[Q^{\pi}(s,a) = E[R_t | s_t = s, a_t = a, \pi] \]
-			
-			\item $Q^*(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用最优策略$\pi^*$得到的最优累积奖励
-			\[Q^*(s,a) = \max_{\pi}Q^{\pi}(s,a) \]
-			
-			\item agent的目标就是找到最优策略$\pi^*$
-			
-			\item 如果下一个状态$s'$和其所对应的所有动作$a'$的最优值函数$Q^*(s',a')$已知，那么满足贝尔曼等式
-				\[Q^*(s,a) = \mathbb{E}_{s' \sim \epsilon}[r + \gamma \max_{a'}Q^*(s',a')|s,a] \]
-			
-			\item Q-Learning的定义为：
-				\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
-		\end{itemize}
-	\end{frame}
-
-	\begin{frame}{背景知识}{Q学习算法描述}
-		\begin{algorithm}[H]
-			\KwIn{状态空间$S$，动作空间$A$，折扣率$\gamma$，学习率$\alpha$}
-			\KwOut{策略$\pi(s) = \arg\max_{a \in |A|}Q(s,a) $}
-			随机初始化$Q(s,a)$\;
-			$\forall s, \forall a, \pi(a|s) = \frac{1}{|A(s)|} $\;
-			\Repeat{$\forall s, a$，$Q(s,a)$收敛}{
-				初始化起始状态$s$\;
-				\Repeat{$s$为终止状态}{
-					在状态$s$，选择$a \in \pi^{\epsilon}(s)$\;
-					执行动作$a$，得到即时奖励$r$和新状态$s'$\;
-					$Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right]$\;
-					$s \gets s'$\;
-				}
-			}
-			\caption{Q学习算法}
-		\end{algorithm}
-	\end{frame}
+%	\begin{frame}{背景知识}{Q-Learning}
+%		\begin{itemize}
+%			\item $Q^{\pi}(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用策略$\pi$所得到的累计奖励
+%			\[Q^{\pi}(s,a) = E[R_t | s_t = s, a_t = a, \pi] \]
+%			
+%			\item $Q^*(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用最优策略$\pi^*$得到的最优累积奖励
+%			\[Q^*(s,a) = \max_{\pi}Q^{\pi}(s,a) \]
+%			
+%			\item agent的目标就是找到最优策略$\pi^*$
+%			
+%			\item 如果下一个状态$s'$和其所对应的所有动作$a'$的最优值函数$Q^*(s',a')$已知，那么满足贝尔曼等式
+%				\[Q^*(s,a) = \mathbb{E}_{s' \sim \epsilon}[r + \gamma \max_{a'}Q^*(s',a')|s,a] \]
+%			
+%			\item Q-Learning的定义为：
+%				\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
+%		\end{itemize}
+%	\end{frame}
+%
+%	\begin{frame}{背景知识}{Q学习算法描述}
+%		\begin{algorithm}[H]
+%			\KwIn{状态空间$S$，动作空间$A$，折扣率$\gamma$，学习率$\alpha$}
+%			\KwOut{策略$\pi(s) = \arg\max_{a \in |A|}Q(s,a) $}
+%			随机初始化$Q(s,a)$\;
+%			$\forall s, \forall a, \pi(a|s) = \frac{1}{|A(s)|} $\;
+%			\Repeat{$\forall s, a$，$Q(s,a)$收敛}{
+%				初始化起始状态$s$\;
+%				\Repeat{$s$为终止状态}{
+%					在状态$s$，选择$a \in \pi^{\epsilon}(s)$\;
+%					执行动作$a$，得到即时奖励$r$和新状态$s'$\;
+%					$Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right]$\;
+%					$s \gets s'$\;
+%				}
+%			}
+%			\caption{Q学习算法}
+%		\end{algorithm}
+%	\end{frame}
 	
 	\section{DQN}
+	
+	\subsection{研究DQN的动机和挑战}
 	
 	\begin{frame}{DQN}{Why DQN}
 		\begin{itemize}
@@ -729,6 +805,8 @@
 			
 		\end{itemize}
 	\end{frame}
+
+	\subsection{DQN的主要思想}
 
 	\begin{frame}{DQN}{Main Idea of DQN-I}
 		\begin{itemize}
@@ -767,13 +845,13 @@
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.8\linewidth]{pictures/dqn-architecture}
-			\caption{}
+			\caption{DQN网络的结构}
 			\label{fig:dqn-architecture}
 		\end{figure}
 		
 	\end{frame}
 
-	\section{DRQN}
+	\section{DQN与经验回放}
 
 	\begin{frame}{DQN}{经验回放}
 		\begin{itemize}
@@ -786,35 +864,29 @@
 		\end{itemize}
 	\end{frame}
 	
-	\begin{frame}{DRQN}{算法}
+	\begin{frame}{DQN-ER}{算法}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.9\linewidth]{pictures/drqn-alg}
-			\caption{}
-			\label{fig:drqn-alg}
 		\end{figure}
 	\end{frame}
 
-	\begin{frame}{DRQN}{实验结果-I}
+	\begin{frame}{DQN-ER}{实验结果-I}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/drqn-expr-result-tab}
-			\caption{}
-			\label{fig:drqn-expr-result-tab}
 		\end{figure}	
 	\end{frame}
 
-	\begin{frame}{DRQN}{实验结果-II}
+	\begin{frame}{DQN-ER}{实验结果-II}
 		\begin{figure}
 			\centering
 			\includegraphics[width=0.7\linewidth]{pictures/drqn-expr-result-chart}
-			\caption{}
-			\label{fig:drqn-expr-result-chart}
 		\end{figure}
 		
 	\end{frame}
 	
-	\part{FPS游戏与DRQN}
+	\part{DRQN与FPS游戏}\label{part:fps}
 	
 	\section{DRQN}
 	
@@ -832,8 +904,6 @@
 				\begin{figure}
 					\centering
 					\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture-2}
-					\caption{}
-					\label{fig:dqn-architecture-2}
 				\end{figure}
 				
 			\end{column}
@@ -883,8 +953,6 @@
 				\begin{figure}
 					\centering
 					\includegraphics[width=0.9\linewidth]{pictures/drqn-architecture}
-					\caption{}
-					\label{fig:drqn-architecture}
 				\end{figure}
 				
 			\end{column}
@@ -981,7 +1049,7 @@
 	
 	\section{用DRQN玩FPS游戏}
 
-	\begin{frame}{DRQN for FPS}{}
+	\begin{frame}{DRQN for FPS}
 		FPS即第一人称射击游戏(First person shooting games)，与Atari 2600相比，FPS游戏具有以下特点：
 	
 		\begin{itemize}
@@ -1027,7 +1095,7 @@
 	\begin{frame}{Methods}{DRQN augmented with game features-I}
 		\begin{figure}
 			\centering
-			\includegraphics[width=0.7\linewidth]{pictures/drqn-with-game-features}
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-with-game-features}
 		\end{figure}
 		
 	\end{frame}
@@ -1117,7 +1185,7 @@
 	\end{frame}
 
 	\begin{frame}{Divide and conquer}{Training: Reward shaping-基本原则}
-		基于击杀给予正回馈，死亡基于负回馈的基础上，增加了以下中间回馈
+		基于击杀给予正回馈，死亡给予负回馈的基础上，增加了以下中间回馈
 		\begin{description}
 			\item[行动网络] 
 				\begin{itemize}
@@ -1175,8 +1243,6 @@
 				\begin{figure}
 					\centering
 					\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-4}
-					\caption{}
-					\label{fig:fps-exper-result-4}
 				\end{figure}
 			\end{column}
 		\end{columns}
