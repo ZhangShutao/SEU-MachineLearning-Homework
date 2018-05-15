@@ -1,0 +1,1313 @@
+\documentclass[10pt]{beamer}
+\usepackage{xeCJK}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{subfigure}
+\usepackage{color}
+\usepackage{media9}
+\usepackage[ruled,linesnumbered,titlenotnumbered,vlined]{algorithm2e}
+\usetikzlibrary{arrows,automata}
+
+\renewcommand{\thealgocf}{}
+\newcommand{\sgn}{\textrm{sgn}}
+
+\usetheme[
+%	sidebar, % 默认不显示包含幻灯片结构的边框。如设置sidebar选项，则参考AAU模板显示左边框
+	footline,
+	blue, % 主色调默认为红色，色调可以选择red和blue
+%	wide, % 幻灯片的长宽比默认为4:3，如设置了wide选项则为16:9
+	hideallsubsections, % 默认显示所有等级的标题。如设置了hideallsubsections，
+	                    % 则不显示小节标题
+	mathserif, % 默认公式字体是钝化的，如设置mathserif选项则采用正常的公式字体
+%	english, % 默认幻灯片环境为中文，如设置english选项则采用英文的章节和图表编号
+	sectiontoc, % 设置sectiontoc选项则在每节（section）之前添加一个所有节的目录，
+	            % 并标明本节在整个幻灯片中的位置，不建议和\part层级一同使用
+]{SEUstyle}
+
+\title[第四组报告]{强化学习与规划 \\ 强化学习在游戏中的应用}
+\author[张舒韬 et al.]{刘翔~吴江恒~张舒韬~赵倩隆}
+\institute[SEU CS Dept. Team 4]{东南大学\ 计算机科学与工程学院\ 第4组}
+
+\begin{document}
+	{\background
+		\begin{frame}[plain,noframenumbering]
+			\titlepage
+		\end{frame}
+	}
+
+	\begin{frame}{总目录}
+		\begin{description}
+			\item[第\ref{part:rl-and-planning}部分] 强化学习与规划（张舒韬）
+			\item[第\ref{part:her}部分] 事后经验回放（刘翔）
+			\item[第\ref{part:dqn}部分] Deep Q-Networks（赵倩隆）
+			\item[第\ref{part:fps}部分] DRQN与FPS游戏（吴江恒）
+		\end{description}
+		
+	\end{frame}
+
+	\part{强化学习与规划}\label{part:rl-and-planning}
+	
+	\section{背景知识回顾}
+	
+	\subsection{马尔科夫决策过程}
+	
+	\begin{frame}{马尔科夫决策过程}{定义}
+		\visible<1->{
+			一个马尔科夫决策过程是一个五元组$D = \langle S,A,P,r,\gamma \rangle$，其中
+			\begin{description}
+				\item[$S$] 过程中的状态（state）集合
+				\item[$A$] 过程中的动作（action）集合
+				\item[$P$] 转移函数（transition function）$P(s, a, s')$定义为$S \times A \times S \rightarrow [0,1]$，表示在状态$s$时选择动作$a$达到状态$s'$的概率
+				\item[$r$] 奖励函数（reward function）$r(s, a, s')$定义为$S \times A \times S \rightarrow \mathbb{R}$，表示在状态$s$时选择动作$a$达到状态$s'$时得到的奖励
+				\item[$\gamma$] 折扣因子（discount factor）$\gamma \in [0,1]$
+			\end{description}
+		}
+		
+		\visible<2->{
+			累积奖励的定义
+			\begin{equation*}
+			\sum^{\infty}_{t=0} {\gamma^t r(s_t, a_t, s_{t+1})}   
+			\end{equation*}
+		}
+	\end{frame}
+
+	\begin{frame}{马尔科夫决策过程}{问题}
+		\begin{description}
+			\item<2->[预测问题（Predicting）] 已知起始状态、转移函数和决策策略，求在此情况下能够得到的累积奖励的期望；
+			\item<3->[规划问题（Planning）] 已知起始状态和转移函数，求使累积奖励的期望值最大的决策策略；
+			\item<4->[强化学习（Reinforcement Learning）] 转移函数或奖励函数未知，求使累积奖励的期望值最大的决策策略。
+		\end{description}
+	\end{frame}
+
+	\begin{frame}{马尔科夫决策过程}{规划与学习}
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=30cm,semithick,bend angle=40]
+			\tikzstyle{every state}=[rectangle,font=\bfseries,fill=white,draw=none,text=black]
+			\node (policy) at (0,0)           [state] {value/policy};
+			\node (exper)  at (1*2,-1.732*2)  [state] {experience};
+			\visible<1,3>{\node (model)  at (-1*2,-1.732*2) [state] {model};}
+			
+			\path (policy) edge [bend left] node {acting} (exper);
+			\visible<1-2>{\path (exper)  edge [bend left] node {direct RL} (policy);}
+			\visible<1,3>{\path (exper) edge [bend left] node {model learning} (model);}
+			\visible<1,3>{\path (model)  edge [bend left] node {planning} (policy);}
+			
+			\only<1>{\node at (0,-5.5) [state] { };}
+			\only<2>{\node at (0,-5.5) [state,text=red] {Model-Free RL};}
+			\only<3>{\node at (0,-5.5) [state,text=red] {Model-Based RL};}
+			\end{tikzpicture}
+			\caption{学习、规划和执行之间的关系\protect\cite{Sutton1998:RL-Introduction}}\label{fig:relation-in-RL}
+		\end{figure}
+	\end{frame}
+
+	\subsection{Q-Learning}
+	
+	\begin{frame}{Q-Learning}{定义}
+		\begin{itemize}
+			\item<2-> Q-Learning是一种off-policy的时序差分学习方法
+			\item<3-> Q-Learning的目标是得到$Q^*$函数的估计，即
+			\[Q^*(s,a) = \max_{\pi}\mathbb{E}(R_t | s_t = t, a_t = a, \pi) \]
+			\[Q^*(s,a) = \mathbb{E}\left[r_{t+1} + \gamma \max_{a' \in A(s)} Q^*(s_{t+1}, a') | s_t = s, a_t = a\right] \]
+			\item<4-> Q-learning的定义为
+			\[ Q(s_t, a_t) \gets Q(s_t, a_t) + \alpha \left[r_{t+1} + \gamma \max_{a \in A(s_{t+1})}Q(s_{t+1}, a) - Q(s_t, a_t) \right] \]
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{Q-Learning}{算法描述}
+		\begin{algorithm}[H]
+			随机初始化$Q(s, a)$\;
+			\ForEach{每个周期（episode）}{
+				初始化$s$\;
+				\ForEach{周期内的每一步，直到$s$为终止状态}{
+					利用$Q$函数中获得的策略（例如$\epsilon$-greedy）选择状态$s$时采取的策略\;
+					执行$a$，观察$s'$和$r'$\;
+					$Q(s_t, a_t) \gets Q(s_t, a_t) + \alpha [r_{t+1} + \gamma \max_{a}Q(s_{t+1}, a) - Q(s_t, a_t) ]$\;
+				}
+			}
+			\caption{Q-Learning}\label{alg:q-learning}
+		\end{algorithm}
+	\end{frame}
+
+	\begin{frame}{基于强化学习的规划}{Q-Planning}
+		
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=50cm,semithick]
+			\tikzstyle{every state}=[rectangle,fill=white,draw=none,text=black,align=center]
+				\visible<2->{
+					\node (model0) at(0,2) [state] {model};
+					\node (policy0) at(9,2) [state] {policy};
+					
+					\path (model0) edge node {planning} (policy0);
+				}
+			
+				\visible<3-> {
+					\draw [->>,thick,draw=red] (4.5,1.5) -- (4.5,0.8);
+					\node (model) at(0,0) [state] {model};
+					\node (exper) at(3,0) [state] {simulated\\ experience};
+					\node (values) at(6,0) [state] {values};
+					\node (policy) at(9,0) [state] {policy};
+					
+					\path (model) edge (exper)
+					(exper) edge node {backups} (values)
+					(values) edge (policy);
+				}
+			\end{tikzpicture}
+		\end{figure}
+	
+		\visible<4->{
+			\begin{algorithm}[H]
+				\Repeat{stop}{
+					随机选择$s \in S$, $a \in A(s)$\;
+					根据模型模拟出下一状态$s'$和奖励$r$\;
+					更新$Q(s,a) \gets Q(s,a) + \alpha[r + \gamma \max_{a'}Q(s',a') - Q(s,a)]$\;
+				}
+				\caption{随机Q-Planning}
+			\end{algorithm}
+		}
+		
+	\end{frame}
+
+	\begin{frame}{强化学习}{强化学习的两种方法}
+		\begin{small}		
+			\begin{description}
+				\item<2->[Model-Based RL] 
+				
+				优点：
+				\begin{itemize}
+					\item 有时直接从环境中学到值函数较难，而模型的$P(s’|s,a)$和$R(r|s,a)$很容易就能用监督学习去学；
+				\end{itemize}
+				
+				缺点：
+				\begin{itemize}
+					\item 误差来源多了模型拟合的误差；
+				\end{itemize}
+				
+				\item<3->[Model-Free RL] 优点：
+				\begin{itemize}
+					\item 不需要具体的环境模型；
+					\item 使用时做出决策的时间快；
+				\end{itemize}
+				
+				缺点：
+				\begin{itemize}
+					\item 优化过程可能不稳定且不收敛；
+					\item 比较难适应变化的环境；
+				\end{itemize}
+			\end{description}
+		\end{small}
+	\end{frame}
+
+	\begin{frame}{强化学习}{Model-Free or Model-Based?}
+		All models are wrong, but some are useful.
+		\begin{flushright}
+			--George E.P. Box, Robustness in the strategy of scientific model building
+		\end{flushright}
+	
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}
+				\visible<2->{\node at (0,0) {\includegraphics[width=.4\linewidth]{pictures/newton.png}};}
+				\visible<3->{\node at(2,0) {\includegraphics[width=.5\linewidth]{pictures/einstein.png}};}
+				\visible<4->{\node at(4,0) {\includegraphics[width=.4\linewidth]{pictures/cat.png}};}
+			\end{tikzpicture}
+		\end{figure}
+	\end{frame}
+
+	\section{两种规划与学习结合的方法}
+	
+	\subsection{Dyna}
+	
+	\begin{frame}{Dyna}{主要思想和结构}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.6\linewidth]{pictures/dyna-arch.png}
+			\caption{Dyna agent的一般结构}
+			\label{fig:dyna-arch}
+		\end{figure}
+		
+		\begin{itemize}
+			\item<2-> Dyna\cite{Sutton1990:Dyna}包括了图\ref{fig:relation-in-RL}中的所有过程，即\alert{规划}、\alert{执行}、\alert{模型学习}和\alert{值函数学习}
+			\item<3-> 规划时使用一个确定的模型（即$P(s,a,s') \rightarrow \{0,1\}$），该模型在；执行过程中不断更新；
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{Dyna}{Dyna-Q}
+		\begin{algorithm}[H]
+			对任意的$s \in S$，$a \in A(s)$，初始化$Q(s,a)$和$Model(s,a)$\;
+			\Repeat{stop}{
+				对当前状态$s$，根据$Q$表选择$a \in A(s)$并执行，得$s'$和$r$\;
+				更新$Q(s,a)$\;
+				\textcolor{blue}{用$s',r$更新$Model(s,a)$\;}
+				\alert{
+				\Repeat(\tcp*[f]{在$Model$上规划并更新$Q$}){$N$次循环}{
+					$s$为任意观察到的状态，$a$为$s$上进行过的任意操作\;
+					$s',r \gets Model(s,a)$\;
+					$Q(s,a) \gets Q(s,a) + \alpha [r + \gamma\max_{a'}Q(s',a') - Q(s,a)]$\;
+				}}
+			}
+			\caption{Dyna-Q算法}\label{alg:dyna-q}
+		\end{algorithm}
+	\end{frame}
+
+	\begin{frame}{Dyna}{实验}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/dyna-exp}
+			\caption[Dnya-Q 迷宫]{Dyna-Q在一个迷宫问题上的实验，agent需要从S走到G，$r\rightarrow \{0,1\}$。对于所有的$N$，第一次探索是一样的，都是大约1700步；之后，Dyna-Q和Q-Learning的差别开始显现}
+			\label{fig:dyna-exp}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{Dyna}{错误的模型-原因}
+		\begin{itemize}
+			\item 模型出错的原因：
+				\begin{itemize}
+					\item 先验知识存在错误
+					\item 随机环境难以用模型描述或估计
+					\item 环境出现变化
+				\end{itemize}
+			\item 处理方法：
+				\begin{itemize}
+					\item 学习过程中不断使用从环境中获得的数据对模型进行更新和纠正
+				\end{itemize}
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{Dyna}{错误的模型-实验}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.5\linewidth]{pictures/blocking-maze}
+			\caption{1000步之后，迷宫出现变化，左侧墙壁打开，右侧通路封闭}
+			\label{fig:blocking-maze}
+		\end{figure}
+		
+		\visible<2->{
+			\begin{figure}
+				\centering
+				\includegraphics[width=0.5\linewidth]{pictures/blocking-maze-result}
+				\caption{由于Dyna算法包括了对模型的更新，agent在一段时间后完成了对环境的重新建模并找到了正确的路径。图中Q+是加强了探索能力的Q-Learning，用$r+\kappa \sqrt{n}$为奖励函数，$n$为$s$状态下$a$连续未被选中的次数}
+				\label{fig:blocking-maze-result}
+			\end{figure}
+		}
+	\end{frame}
+	
+	\subsection{DARLING}
+	
+	\begin{frame}{DARLING}{方法介绍}
+		DARLING方法\cite{Leonetti2016:AutoPlan-RL}的求解步骤：
+		\begin{enumerate}
+			\item<2-> 根据预设的模型，用规划求解器（例如ASP推理机）求解某个度量值（例如规划的步骤数量）在阈值内的规划方案；
+			\item<3-> 筛选合并求得的规划方案，删除包含冗余步骤的方案，融合后得到部分策略，即在各个状态下可选的行动集合；
+			\item<4-> 执行和学习，在执行中仅选择部分策略中的行为，学习它们的累积奖励的期望并优化策略。
+		\end{enumerate}
+	
+	\end{frame}
+
+	\begin{frame}{DARLING}{建模，规划，筛选，合并}
+		\begin{description}
+			\item<2->[建模（Modeling）] 对环境$D=\langle S, A, P, r,\gamma \rangle$进行建模，建立从环境状态到模型状态的函数$o:S \rightarrow S_m$，得$D_m = \langle S_m, A, P_m \rangle$，其中
+			\item<3->[规划（Planning）] 利用规划工具，以一定的冗余度计算可行的方案。规划是在一个假设的模型上执行的，因此不能保证所得的方案是最优甚至可行的；
+			\item<4->[筛选（Filtering）] 如果规划方案中存在重复出现的状态和动作（例如存在环），则认为方案是冗余的，可以被更短的方案代替；
+			\item<5->[合并（Merging）] 合并筛选过的方案，得到可达状态和这些状态下可选择的动作的集合，即一个简化的模型$D_r$；
+		\end{description}
+		
+		\vspace{10pt}
+		\visible<5->{
+			从Planning到Merging的过程其实是将假设中的模型$D_m$做了进一步的化简和压缩。
+		}
+	\end{frame}
+
+	\begin{frame}{DARLING}{Planning \& Filtering and Merging-例}
+		\begin{figure}
+			\centering
+			\subfigure[迷宫问题，要求机器人从S走到G，图中红色横线为一扇可能开启或关闭的门。Planning步骤求长度小于最短方案的1.5倍的方案]{
+			\includegraphics[width=0.475\linewidth]{pictures/grid-world.png}
+			}
+			\subfigure[部分策略，由筛选后的non-redudant方案融合而成]{
+			\includegraphics[width=.35\linewidth]{pictures/partial-policy.png}
+			}
+			\caption{左图实验环境描述，右图为经过建模、规划、筛选、合并后得到的部分策略}
+			\label{fig:grid-world}
+		\end{figure}
+	
+	\end{frame}
+
+	\begin{frame}{DARLING}{Execution and learning}
+		\begin{itemize}
+		\item 实际的转移函数和模型中设想的转移函数并不一致。这会导致agent在执行和学习的过程中进入了模型中没有的状态。此时应该以新出现的状态为初始状态，重新进行规划，并将所得的部分策略添加到已有的部分策略中；
+		
+		\item 在所得模型上的RL与其他的强化学习并无太大差别，任意的强化学习方法都可以实现。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DARLING}{实验}
+		\begin{itemize}
+			\item<2-> 实验采用的环境如图\ref{fig:grid-world}所示。仅在agent到达门口时才获知门是否打开（Partial Observed MDP，POMDP），在周期$e$时门打开的概率为
+				\[p(e)=
+					\begin{cases}
+						1 - \frac{e}{E-1} & 0 \leq e < E \\
+						0 & \text{other wise}
+					\end{cases}
+				\]
+			\item<3-> 实验中用到了以下几种agent:
+			\begin{description}
+				\item[P agent]<4-> 仅在$D_m$上进行规划；
+				\item[RL agent]<5-> 仅在$D$上进行强化学习；
+				\item[PRL agent]<6-> 采用DARLING方法，在$D_m$上计算部分策略，并将强化学习的探索限制在$D_r$上；
+				\item[Pmem-n agent]<7-> 采用DARLING方法，有前$n$个周期内观察门是否打开的记忆，并以此估计当前门是否打开；
+			\end{description}
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DARLING}{实验结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.6\linewidth]{pictures/darling-expr}
+			\caption{实验结果}
+			\label{fig:darling-expr}
+		\end{figure}
+		\visible<2->{
+			\only<2>{P agent的累积奖励变化与$p(e)$的概率保持一致。但由于实际应用中，$D_m$和$D$差距较大，因此直接使用规划方法不可能取得如此良好的结果。}
+			\only<3>{RL agent很快学到了最优策略，但环境变化后没有能发现更优的策略。}
+			\only<4>{PRL agent学到了最优策略，并在环境变化后选择了更优的策略。}
+			\only<5>{Pmem-1 agent被起初的观察限制，没有发现环境的变化，因此没有发现更优的策略。实际上，无论$n$的取值如何，agent在不稳定的环境中都没有获得最优策略。}
+		}
+	\end{frame}
+
+	\part{事后经验回放}\label{part:her}
+	
+	\section{相关背景}
+	
+	\subsection{简介}
+	
+	\begin{frame}{相关背景}{简介}
+		\begin{itemize}
+			\item<2-> 强化学习（RL）与神经网络的结合已经被广泛应用于序列决策问题；
+			
+			\item<3-> 存在的问题（尤其对于机器人设计来说）：通常需要设计一个回报函数（reward function），它不仅要能够体现目标任务，而且还要能够指导agent进行优化决策的策略（policy optimization）；
+			
+			\item<4-> 由此带来的挑战是：这不仅需要RL领域的专业知识，还可能需要具体应用场景的特定知识（domain-specific knowledge）；
+			
+		\end{itemize}
+		
+		\visible<5>{Problem：能否设计一个算法，能够从unshaped reward signals（e.g. 用0-1回报值表明任务是否成功完成）中学习?}
+	\end{frame}
+
+	\begin{frame}{背景介绍}{简介}
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}
+				\draw (0,0) rectangle (6cm, 4cm);
+				\draw [draw=white] (4,3.5) node {Target Area};
+				\draw (4,2) circle [radius=.75cm];
+				\fill (1,2.5) circle [radius=.1cm,fill=black];
+				\draw [->,>=stealth,draw=red] (1,2.5) -- (4,0.5);
+				
+				\visible<2->{\draw(4,1) circle [radius=.75cm];}
+			\end{tikzpicture}
+			\caption{人类拥有的一种能力是从未达到预期的结果那里获得与希望获得的结果相关的经验。}\label{fig:idea-of-her}
+		\end{figure}
+	\end{frame}
+
+	\subsection{涉及的算法}
+
+	\begin{frame}{相关算法}{Deep Q-Networks(DQN)}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.4\linewidth]{pictures/DQN}
+			\caption{使用神经网络来近似Q函数。该网络将一个状态s作为输入，并为每个动作a输出Q函数的估计值。}
+			\label{fig:dqn}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{相关算法}{经验回放（Experience Replay）}
+		\begin{itemize}
+			\item<2-> 对于不可枚举状态的环境（如连续的状态空间），一般采用值函数逼近（Value Function Approxiamation）来拟合和泛化Q函数。
+			
+			\item<3-> 经验回放是从以往的经验中选取经验更新策略。
+			
+			\item<4-> Deep Q-Networks（DQN）\cite{Hasselt16:DQN}是基于监督学习的框架，而损失函数基于强化学习，因此会有这样的问题：监督学习需要输入的样本是独立同分布，而RL中的强序列关联性不符合这个假设。如果没有经验回放，可能会出现不收敛的情况；
+			
+			\item<5-> 采用经验回放，会缓和样本的关联性。其优点包括：
+				\begin{enumerate}
+					\item 算法收敛；
+					\item 提高泛化能力;
+				\end{enumerate}
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{相关背景}{Deep Deterministic Policy Gradients (DDPG)}
+		\begin{itemize}
+			\item<2-> DQN是一个面向离散控制的算法，即输出的动作是离散的；
+			
+			\item<3-> 深度确定性策略梯度（Deep Deterministic Policy Gradient，DDPG）算法\cite{Chou17:DDPG}是利用 DQN 扩展 Q 学习算法的思路对确定性策略梯度（Deterministic Policy Gradient， DPG）方法进行改造，该算法输出的不是行为的概率, 而是具体的行为, 用于连续动作的预测；
+			
+			\item<4-> 随机性策略和确定性策略：
+				\begin{description}
+					\item[随机性策略]<5-> 策略输出的是动作的概率，比如连续动作控制，使用的是一个正态分布对动作进行采样选择，即每个动作都有概率被选到；
+						\begin{description}
+							\item[优点] 将探索和改进集成到一个策略中；
+							\item[缺点] 需要大量训练数据；
+						\end{description}
+					
+					\item [确定性策略]<6-> 策略输出即是动作
+						\begin{description}
+							\item[优点] 需要采样的数据少，算法效率高；
+							\item[缺点] 无法探索环境；
+						\end{description}
+				\end{description}
+			
+		\end{itemize}
+	\end{frame}
+	
+	\section{事后经验回放}
+	
+	\begin{frame}{HER}{启发案例-I}
+		\begin{example}[比特转换]
+			\begin{columns}
+				\begin{column}{0.5\textwidth}
+					\begin{itemize}
+						\item 环境描述：
+							\begin{description}
+								\item[状态空间] $S = \{0,1\}^n$
+								\item[动作空间] $\{0, 1, \dots, n-1 \}$
+								\item[奖励函数] $r(s,a) = -\sgn(s \neq g)$
+							\end{description}	
+					\end{itemize}
+					
+				\end{column}
+				\begin{column}{0.5\textwidth}
+					\begin{figure}
+						\includegraphics[width=.7\linewidth]{pictures/bit-flip.png}
+						\caption{Bit Flipping实验结果}\label{fig:bi-flip}
+					\end{figure}
+				\end{column}
+			\end{columns}
+		
+			\begin{tikzpicture}
+				\node [draw opacity=0] (s) at (0,.5) {s:0100101010};
+				\node [draw opacity=0] (g) at(0,0) {g:1101010100};
+				\visible<3-> {
+					\node [draw opacity=0,right of=s] (s1) at (3,.5) {\textcolor{red}{1}100101010};
+					\path [->] (s) edge (s1);
+				}
+				\visible<2-> {
+					\node [draw opacity=0] (a) at (2,.75) {Action:0};
+				}
+				\visible<4-> {
+					\node [draw opacity=0] (r) at (2,.25) {Reward:-1};
+				}
+				\visible<5-> {
+					\node [draw opacity=0] (v) at (6,.5) {};
+					\path [->] (s1) edge node (dot) {$\cdots$} (v);
+				}
+			\end{tikzpicture}
+		\end{example}
+	\end{frame}
+
+	\begin{frame}{HER}{启发案例-II}
+		\begin{itemize}
+			\item<2-> 在这样的环境下，尤其是比特位数$n$>40时，经典的强化学习算法如DQN很难学习到从起始状态到终点状态的路径；因为它探索到的reward值基本都是-1；
+			
+			\item<3-> 在这样的环境中，一个比较好的解决方法是用一个给予更多信息的回报函数（shaped reward function），以此来给予agent更多到达终点的信息；如： $r_g(s,a) = -||s - g||^2 $；
+			
+			\item<4-> 在更为复杂的环境中，设置一个有效合适的回报函数有时会比较困难；因此本文目的是设计一个更为普遍的通用于多种环境中的方法，而不要有针对具体应用环境的特定领域知识。
+			
+		\end{itemize}
+	
+		\visible<5->{事后经验回放（Hind Experience Replay，HER）\cite{Andrychowicz17:HER}}
+	\end{frame}
+
+	\begin{frame}{HER}{多目标强化学习（Multi-goal RL）}
+		\begin{itemize}
+			\item<2-> 训练agent能够学会到达多个目标点；
+				\[f_g \left( (x,y) \right) =  \sgn(x=g) \]
+			
+			\item<3-> 在训练policy和value function的过程中，将state $s$和目标$g$作为输入(Universal Value Function Approximators)；
+		\end{itemize}
+		
+	\end{frame}
+
+	\begin{frame}{HER}{算法描述}
+		\begin{figure}
+			\centering
+			\begin{tikzpicture}[->,>=stealth',node distance=2cm]
+				\node [state] (s0) {$s_0$};
+				\node [state,right of=s0] (s1) {$s_1$};
+				\node [state,right of=s1] (s2) {$s_2$};
+				\node [state,right of=s2] (s3) {$s_3$};
+				\node [state,right of=s3] (sr) {$s_r$};
+				\path (s0) edge (s1)
+						  (s1) edge (s2)
+						  (s2) edge (s3)
+						  (s3) edge node {$\cdots$} (sr);
+			\end{tikzpicture}
+		\end{figure}
+	
+		\begin{algorithm}[H]
+			\KwIn{周期$s_0,s_1,s_2,…, s_T$}
+			
+			\For{$t=0\text{ to }T-1$}{
+				使用现有的策略A，从中选取一个action$a_t$，即$a_t \gets \pi_b (s_t ||g)$\;
+				执行动作$a_t$，观测下一个状态\;
+			}
+			\For{$t=0\text{ to }T-1$}{
+				计算reward值：$r_t=r(s_t,a_t,g)$\;
+				Experience Replay： 将状态转移$s_t \rightarrow s_{t+1}$以$(s_t ||g,a_t,r_t,s_{t+1}||g)$形式保存到replay buffer中\;
+			}
+			利用replay buffer 进行更新已有策略A\;
+			\caption{事后经验回放算法}\label{alg:her}
+		\end{algorithm}
+	\end{frame}
+	
+	\section{实验}
+	
+	\subsection{实验任务、环境与模型}
+	
+	\begin{frame}{实验}{环境}
+		\begin{itemize}
+			\item 采用在现有的硬件机器人的基础上的控制环境
+			\item 首先是用一个物理引擎模拟机器人的控制和反馈，之后在实际场景中实验；
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.8\linewidth]{pictures/her-robot}
+					\caption{三种不同的任务：pushing（第一行），sliding（第二行），pick and place（第三行）}
+					\label{fig:her-robot}
+				\end{figure}
+				
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{实验}{三种任务}
+		\begin{description}
+			\item[Pushing]<2-> 一个盒子置于平台上，任务是让机械臂将它推到平台的目标区域；在此过程中，机械臂的手指会被锁住不允许抓取盒子；学习到的行为可以视为推和翻转的混合动作；
+			
+			\item[Sliding]<3-> 一个冰球置于一个长而光滑的平台上，目标位置在机械臂所能到达的位置之外，所以需要它以某种程度的力量击打冰球让它最终到达目标点；
+			
+			\item[Pick-and-place]<4-> 类似pushing任务，不同的是目标点是在空中某个位置并且机械臂收不会被锁住可以抓取物体；
+			
+		\end{description}
+	\end{frame}
+
+	\begin{frame}{实验}{模型}
+		\begin{description}
+			\item[States] 状态空间会由模拟实验中的物理引擎来表示，主要包括机械臂的角度、速度以及物体的位置、旋转和速度（线性速度和角速度）等；
+			
+			\item[Goals] 目标是指想要物体（根据实验任务，可以是盒子或者是冰球）到达的位置 ，容许有一定的误差$\epsilon$, 即$f_g(s) = \sgn(g-s_{object} \leq \epsilon)$. 
+			
+			\item[Rewards] 使用二进制和稀疏回报$\{−1,0\}$：到达目标状态则为0，否则均为-1；
+			
+			\item[State-goal] 对于所有的任务，机械臂的初始位置是固定的，需要移动物体的初始位置以及终点位置是随机选取；
+			
+		\end{description}
+	\end{frame}
+	
+	\subsection{实验结果}
+	
+	\begin{frame}{实验结果}{多目标学习结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/multi-goal-expr}
+			\caption{多目标学习曲线}
+			\label{fig:multi-goal-expr}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{实验结果}{单目标学习结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/single-goal-expr}
+			\caption{单目标学习曲线}
+			\label{fig:single-goal-expr}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{实验结果}{Reward Shaping 结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/reward-shape-expr}
+			\caption{变更奖励函数后的学习曲线，其中$r(s,a,g) = -|g-s'_{object}|^2$}
+			\label{fig:reward-shape-expr}
+		\end{figure}
+		
+	\end{frame}
+
+	\subsection{算法改进}
+
+	\begin{frame}{算法改进}
+		\begin{algorithm}[H]
+			\KwIn{周期$s_0,s_1,s_2,…, s_T$}
+			
+			\For{$t=0\text{ to }T-1$}{
+				使用现有的策略A，从中选取一个action$a_t$，即$a_t \gets \pi_b (s_t ||g)$\;
+				执行动作$a_t$，观测下一个状态\;
+			}
+			\For{$t=0\text{ to }T-1$}{
+				计算reward值：$r_t=r(s_t,a_t,g)$\;
+				Experience Replay： 将状态转移$s_t \rightarrow s_{t+1}$以$(s_t ||g,a_t,r_t,s_{t+1}||g)$形式保存到replay buffer中\;
+				\textcolor{red}{
+					按照策略$S(s_0,s_1,\dots,s_t)$，从中选取额外的目标，记为集合$G$\;
+					\For{$g' \in G$}{
+						$r'\gets r(s_t,a_t,g')$\;
+						将$(s_t ||g',a_t,r',s_{t+1}||g')$保存到replay buffer\;
+					}
+				}
+			}
+			利用replay buffer 进行更新已有策略A\;
+			\caption{改进的事后经验回放算法}\label{alg:adv-her}
+		\end{algorithm}
+	\end{frame}
+
+	\begin{frame}{算法改进}{选择目标的不同方法的效果-均值}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/her-with-additional-goals}
+			\caption{横轴为回放时使用的额外目标的数量}
+			\label{fig:her-with-additional-goals}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{算法改进}{选择目标的不同方法的效果-最大值}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/her-with-additional-goals-highest}
+			\caption{横轴为回放时使用的额外目标的数量}
+			\label{fig:her-with-additional-goals-highest}
+		\end{figure}
+	
+	\end{frame}
+
+	\begin{frame}{算法改进}{选择目标的不同方法的效果-平均成功比率}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/her-with-additional-goals-avg-success}
+			\caption{横轴为回放时使用的额外目标的数量}
+			\label{fig:her-with-additional-goals-avg-success}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{实验}{硬件机器人}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/physical-robot}
+			\caption{在硬件机器人上执行pick-and-place策略}
+			\label{fig:physical-robot}
+		\end{figure}
+	\end{frame}
+
+	\section{结论}
+	
+	\begin{frame}{结论}
+		本文的工作包括：
+		\begin{enumerate}
+			\item<2-> 提出了HER算法，能够将强化学习方法应用到稀疏回报值的问题中；
+			\item<3-> HER算法具有很强的通用性，能够结合任意的off-policy RL算法，在实验中结合的是DQN和DDPG方法；
+			\item<4-> 在实验中，将HER算法应用到让机器臂完成不同的移动物品的任务上，展示了突出的效果。
+		\end{enumerate}
+	\end{frame}
+		
+	\part{Deep Q Network}\label{part:dqn}
+	
+	\section{背景知识}
+	
+	\begin{frame}{背景知识}{Atari 2600 games}
+		\begin{columns}
+			\begin{column}{.8\linewidth}
+				\begin{itemize}
+					\item 雅达利（1972 ,美国）
+					\item 主要产品为Atari 2600游戏主机
+					\item 游戏环境 $\varepsilon$
+					\begin{itemize}
+						\item 屏幕输出$x_t$
+						\item agent执行的动作$a_t$
+						\item 游戏分数的变化$r_t$
+						\item 屏幕输出与动作序列表示状态$s_t$
+						\[s_t=x_1,a_1,x_2,a_2,\dots,a_{t-1},x_t \]
+						\item 期望累积奖励
+						\[R_t=\sum\nolimits_{t=t'}^{T}\gamma^{t-t'}r_{t'} \]
+					\end{itemize}
+				\end{itemize}
+			\end{column}
+			\begin{column}{.2\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.6\linewidth]{pictures/atari2600}
+					\caption{Atari 2600}
+					\label{fig:atari2600}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	
+		\vspace{-1em}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/atari2600-games}
+			\caption{Atari 2600上的五个游戏，分别是Pong，Breakout，Space Invader，Seaquest，Beam Rider}
+			\label{fig:atari2600-games}
+		\end{figure}
+	\end{frame}
+
+%	\begin{frame}{背景知识}{Q-Learning}
+%		\begin{itemize}
+%			\item $Q^{\pi}(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用策略$\pi$所得到的累计奖励
+%			\[Q^{\pi}(s,a) = E[R_t | s_t = s, a_t = a, \pi] \]
+%			
+%			\item $Q^*(s,a)$定义为从状态$s$出发，执行动作$a$后，再使用最优策略$\pi^*$得到的最优累积奖励
+%			\[Q^*(s,a) = \max_{\pi}Q^{\pi}(s,a) \]
+%			
+%			\item agent的目标就是找到最优策略$\pi^*$
+%			
+%			\item 如果下一个状态$s'$和其所对应的所有动作$a'$的最优值函数$Q^*(s',a')$已知，那么满足贝尔曼等式
+%				\[Q^*(s,a) = \mathbb{E}_{s' \sim \epsilon}[r + \gamma \max_{a'}Q^*(s',a')|s,a] \]
+%			
+%			\item Q-Learning的定义为：
+%				\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
+%		\end{itemize}
+%	\end{frame}
+%
+%	\begin{frame}{背景知识}{Q学习算法描述}
+%		\begin{algorithm}[H]
+%			\KwIn{状态空间$S$，动作空间$A$，折扣率$\gamma$，学习率$\alpha$}
+%			\KwOut{策略$\pi(s) = \arg\max_{a \in |A|}Q(s,a) $}
+%			随机初始化$Q(s,a)$\;
+%			$\forall s, \forall a, \pi(a|s) = \frac{1}{|A(s)|} $\;
+%			\Repeat{$\forall s, a$，$Q(s,a)$收敛}{
+%				初始化起始状态$s$\;
+%				\Repeat{$s$为终止状态}{
+%					在状态$s$，选择$a \in \pi^{\epsilon}(s)$\;
+%					执行动作$a$，得到即时奖励$r$和新状态$s'$\;
+%					$Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right]$\;
+%					$s \gets s'$\;
+%				}
+%			}
+%			\caption{Q学习算法}
+%		\end{algorithm}
+%	\end{frame}
+	
+	\section{Deep Q-Neworks}
+	
+	\subsection{研究DQN的动机和挑战}
+	
+	\begin{frame}{DQN}{Why DQN}
+		\begin{itemize}
+			\item<2-> 游戏中的状态数量太多，无法遍历和存储所有的值函数
+			
+			\item<3-> 通常使用一个含参函数来估计值函数
+			
+			\item<4-> 强化学习很难从高维数据（例如视频、声音）中直接学习控制策略。许多应用于视频和声音领域的强化学习策略都是基于手工指定的特征
+			
+			\item<5-> 深度卷积神经网络可以直接从视频等高维信息中学习抽象的高层特征
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{Challenges in DQN}
+		\begin{itemize}
+			\item<2-> 深度学习方法要求大量人工标记的训练数据。强化学习算法通常是从数值奖励中学习的，这些奖励反馈通常是稀疏的、有噪声、有延迟的。
+			
+			\item<3-> 大多数深度学习方法假定数据样本是独立的，然而强化学习算法的数据样本通常是具有高度相关性的。
+			
+			\item<4-> 在强化学习中，数据样本的分布随着学习到的策略的改变而改变，而深度学习中假定数据样本的分布是固定的
+			
+		\end{itemize}
+	\end{frame}
+
+	\subsection{DQN的主要思想}
+
+	\begin{frame}{DQN}{Main Idea of DQN-I}
+		Deep Q-Networks\cite{Hasselt16:DQN}的主要思想如下：
+		\begin{itemize}
+			\item<2-> 训练一个参数为$\theta$的卷积神经网络来估计值函数
+			
+			\item<3-> 使用经验回放来减少数据间的相关性，平缓数据分布的变化
+			
+			\item<4-> 使用两个网络target Q以及Q网络，两个网络结构一样，参数不同。target Q网络的参数$\theta_i^-$，是Q网络的参数$\theta_i$的历史版本。Q网络的作用是在每次迭代$i$中改变参数$\theta_i$，估计值函数。target Q网络的作用是给出每次迭代$i$中的估计目标
+			\[y_i = E_(s' \in \epsilon)[r + \gamma \max_{a'} target\_Q(s',a',\theta_i^-)] \]
+			
+			\item<5-> 每次迭代$i$的损失函数可以表示为
+			\[L_i(\theta_i) = E_{s,a,r,s'}[(y_i - Q(s,a| \theta_i))^2] \]
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{Main Idea of DQN-II}
+		\begin{itemize}
+			\item<2-> target Q网络使用Q网络的参数$\theta_i$的历史版本能够平缓数据分布的变化
+			
+			\item<3-> 第$i$次迭代的损失函数为
+			\[L_i(\theta_i)=E_{s,a,r,s'}[(r + \gamma \max_{a'}target\_Q(s',a',\theta_i^-) - Q(s,a,\theta_i))^2] \]
+			
+			\item<4-> 更新梯度为
+				\begin{small}
+					\[\nabla_{\theta_i}L_i(\theta_I) = E_{s,a,r,s'}[(r + \gamma \max_{a'} target\_Q(s',a'|\theta_i^-) - Q(s,a|\theta_i))\nabla_{\theta_i}Q(s,a|\theta_i)] \]
+				\end{small}
+			
+			\item<5-> 与Q-learning相比
+			\[ Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'}Q(s', a') - Q(s, a) \right] \]
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DQN}{网络结构}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture}
+			\caption{DQN网络的结构}
+			\label{fig:dqn-architecture}
+		\end{figure}
+		
+	\end{frame}
+
+	\section{DQN与经验回放}
+
+	\begin{frame}{DQN}{经验回放}
+		\begin{itemize}
+			\item<2-> 维持一个容量有限的经验池$D=e_1,\dots,e_t$
+			
+			\item<3-> 每次agent在时间$t$行动后获得的经验$e_t = (s_t,a_t,r_t,s_{t+1})$存入经验池$D$中
+			
+			\item<4-> 在训练时，随机地从经验池$D$中选择经验$e_t$来训练网络
+			
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{DQN-ER}{算法}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-alg}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{DQN-ER}{实验结果-I}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-expr-result-tab}
+		\end{figure}	
+	\end{frame}
+
+	\begin{frame}{DQN-ER}{实验结果-II}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-expr-result-chart}
+		\end{figure}
+		
+	\end{frame}
+	
+	\part{DRQN与FPS游戏}\label{part:fps}
+	
+	\section{DRQN}
+	
+	\subsection{DRQN结构介绍}
+	
+	\begin{frame}{Deep Q-Network 回顾}
+		\begin{columns}
+			\begin{column}{.6\linewidth}
+				\begin{itemize}
+					\item<2-> 前面提到，DQN在Atari游戏中，有能力学习到不输人类的控制策略。
+					\item<3-> 它仅仅将游戏最近4帧的原始画面作为输入，就使agent在Atari游戏中有了能与人类相抗衡的表现。
+					\item<4-> 但是，DQN在需要记忆\alert{超过最近4帧}画面的游戏中表现不佳，这类游戏未来的state和reward不仅依赖于当前输入的画面，还依赖于更早画面中的信息。
+					\item<5-> 上述现象是一种 Partially-Observable Markov Decision Process (POMDP)。
+				\end{itemize}
+			\end{column}
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture-2}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+		
+	\end{frame}
+
+	\begin{frame}{从DQN到DRQN}
+		为解决前述POMDP问题，我们需要对原始的DQN加以改进，Deep Recurrent Q-Network应运而生。
+		\begin{columns}[c]
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/dqn-architecture-2}
+				\end{figure}
+			\end{column}
+			\begin{column}{.1\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/big-arrow}
+				\end{figure}
+			\end{column}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/drqn-architecture}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{Deep Recurrent Q-Network}
+		\begin{columns}
+			\begin{column}{.6\linewidth}
+				与DQN相比，DRQN:
+				\begin{itemize}
+					\item<2-> 将原本的全连接层替换为相同维度的Long-Short Term Memory (LSTM).
+					
+					\item<3-> 每一个timestep只接受一帧画面作为输入。
+					
+					\item<4-> LSTM为过去的状态提供记忆能力。
+					
+				\end{itemize}
+			\end{column}
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/drqn-architecture}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{Research Line}
+		\begin{itemize}
+			\item Intelligent decision making is the heart of AI.
+			
+			\item Desire agents capable of learning to act intelligently in diverse environments.
+			
+			\item Reinforcement learning provides a general learning framework.
+			
+			\item RL + deep neural networks yields robust controllers that learn from pixels. (DQN)
+			
+			\item DQN lacks mechanisms for handling partial observability.
+			
+			\item Extend DQN to handle Partially Observable Markov Decision Processes (POMDPs).
+			
+		\end{itemize}
+	\end{frame}
+
+	\subsection{DRQN vs. DQN}
+
+	\begin{frame}{DRQN}{实验：DRQN vs DQN}
+		\begin{itemize}
+			\item<2-> 比较对象：
+				\begin{itemize}
+					\item DRQN；
+					\item 扩展DQN（将普通DQN的输入扩展到10张图片）；
+					\item DQN.
+				\end{itemize}
+			
+			\item<3-> 实验目标：
+				\begin{itemize}
+					\item Standard Atari games
+					\item Flickering Atari games
+				\end{itemize}
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DRQN vs DQN}{实验结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/dqn-vs-drqn-result}
+			\caption{DRQN的表现勉强达到DQN的水平}
+			\label{fig:dqn-vs-drqn-result}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{DRQN}{Flickering Atari games}
+		\begin{columns}
+			\begin{column}{.6\linewidth}
+				以一个随机概率遮蔽屏幕，使游戏呈现partially observability.
+				%这个公式是哪里来的？
+				\[o_t
+					\begin{cases}
+						s_t & with p = \frac{1}{2} \\
+						\langle 0, \dots, 0 \rangle & \text{otherwise}
+					\end{cases}
+				\]
+				
+				现在，当前的游戏状态只能够从历史状态中获取到了。
+			\end{column}
+		
+			\begin{column}{.4\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.7\linewidth]{pictures/pomdp}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{DRQN}{Results: Flickering Atari 
+	
+}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/flickering-atari-result}
+			\caption{横轴：某时间步能够观测到游戏画面的概率；纵轴：各模型与自己Standard Atari games得分的比值}
+			\label{fig:flickering-atari-result}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{DRQN}{结论}
+		\begin{itemize}
+				\item 在Standard Atari games中，DRQN的表现勉强比上DQN
+				\item 在Flickering Atari games中，DRQN表现下降的幅度比DQN小得多
+		\end{itemize}
+	
+		\visible<2->{但这样的结果远远不能让人满意……}
+	\end{frame}
+	
+	\section{用DRQN玩FPS游戏}
+
+	\begin{frame}{DRQN for FPS}
+		FPS即第一人称射击游戏(First person shooting games)，与Atari 2600相比，FPS游戏具有以下特点\cite{Lample17:RL4FPS}：
+	 
+		\begin{itemize}
+			\item<2-> 操作更加复杂，行为更加丰富(搜索地图，收集道具，识别并打败敌人…)；
+			\item<3-> 画面只能观测到部分游戏状态(partially observable)；
+			\item<4-> FPS与现实场景相似，相关技术适合在机器人开发中得到应用。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{DRQN for FPS}{VizDoom}
+		VizDoom是一个基于Doom的AI研究平台，主要针对面向原始视觉信息输入的增强学习。
+		
+		Doom Deathmatch规则介绍：
+		http://vizdoom.cs.put.edu.pl/
+		
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.8\linewidth]{pictures/deathmatch}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{DRQN for FPS}{Baseline DRQN model}
+		首先，直接利用原始的DRQN运用在ViZDoom上，效果并不好。
+		\begin{itemize}
+			\item<2-> 训练出的agent会随意开火；
+			\item<3-> 对使用弹药加以惩罚：如果惩罚过重，agent就不会开火；过轻，agent依然会随意开火。
+			\item<4-> agent不能够准确地探测敌人
+		\end{itemize}
+		
+	\end{frame}
+
+	\begin{frame}{DRQN for FPS}{Methods}
+		\begin{description}
+			\item[DRQN augmented with game features] 
+			使用了一个增加游戏信息(game features)的DRQN模型来提升性能。
+			
+			\item[Divide and conquer]
+			将游戏过程分为两个阶段分别训练，提升性能并加快了训练速度。
+			
+		\end{description}
+	\end{frame}
+
+	\subsection{添加游戏特征}
+
+	\begin{frame}{添加游戏特征}{网络结构}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/drqn-with-game-features}
+		\end{figure}
+		
+	\end{frame}
+
+	\begin{frame}{添加游戏特征}{游戏特征}
+		\begin{itemize}
+			\item<2-> 训练时加入了当前画面的游戏状态信息作为输入;
+			
+			\item<3-> 网络的损失函数是DRQN的损失函数合并上交叉熵损失(cross-entropy loss)，同时训练DRQN和游戏状态信息的侦测，使卷积层也能够捕捉到与游戏相关的信息;
+			
+			\item<4-> 虽然可以获得许多游戏信息，但仅考虑画面中是否有敌人的信息，就能使模型的表现有显著的改进。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{添加游戏特征}{实验结果}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.7\linewidth]{pictures/with-game-features-result}
+			\caption{横轴：训练时间；纵轴：击杀死亡比}
+			\label{fig:with-game-features-result}
+		\end{figure}
+	\end{frame}
+
+	\subsection{分治}
+	
+	\begin{frame}{分治}{阶段划分}
+		Doom Deathmatch 游戏过程被分成两个阶段：导航阶段和行动阶段
+		\begin{description}
+			\item[导航阶段(the navigation)]  探索地图，收集，发现敌人
+			\item[行动阶段(the action)]：攻击敌人
+		\end{description}
+		
+		\visible<2->{	
+			当前游戏过程处何阶段由画面中是否有敌人来决定(game feature)。
+		}
+	
+	\end{frame}
+
+	\begin{frame}{分治}{阶段示例}
+		\begin{columns}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/deathmatch-2}
+					\caption{导航阶段}
+					\label{fig:deathmatch-2}
+				\end{figure}
+			\end{column}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/deathmatch-3}
+					\caption{行动阶段}
+					\label{fig:deathmatch-3}
+				\end{figure}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{分治}{训练模型}
+		对不同的阶段，使用了不同的模型进行训练：
+		\begin{description}
+			\item[导航阶段] DQN
+			\item[行动阶段] DRQN with game features
+		\end{description}
+		
+		\visible<2->{
+			目前，DQN并不支持结合多个网络来优化不同的目标，但当前的游戏信息可以由改进的DRQN进行侦测。
+		}
+		
+	\end{frame}
+
+	\begin{frame}{分治}{优点}
+		这样的分治策略带来许多优点：
+		\begin{itemize}
+			\item<2-> 两个网络可以并行训练，大大加快了模型训练速度。
+			\item<3-> 导航阶段只包含了三种操作：向左、向右和前进，大大减少了模型中state-action pairs的数量，进一步提高效率。
+			\item<4-> 相比使用单个网络训练，分治有效避免了agent的“蹲点”行为。
+			
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{分治}{Training: Reward shaping}
+		在Doom deathmatch中，游戏分数通过 击杀数/死亡数(K/D ratio) 进行计算。如果回馈只通过计算分数得到，那么DRQN训练时的replay table会非常稀疏，导致模型在训练时难以收敛。
+		
+		作者们采取了回馈共享(Reward shaping)的思路，修改回报函数，包含一些小的中间回报来加速学习过程。
+		
+	\end{frame}
+
+	\begin{frame}{分治}{Training: Reward shaping-基本原则}
+		基于击杀给予正回馈，死亡给予负回馈的基础上，增加了以下中间回馈
+		\begin{description}
+			\item[行动网络]<2->
+				\begin{itemize}
+					\item 拾取物品，正回馈
+					\item 失去生命值，负回馈
+					\item 开枪射击导致弹药减少，负回馈
+				\end{itemize}
+			\item [导航网络]<3->
+				\begin{itemize}
+					\item 拾取物品，正回馈
+					\item 在岩浆上行走，负回馈
+					\item 移动距离，正回馈  ——有利于让agent更快速地探索地图
+				\end{itemize}
+		\end{description}
+	\end{frame}
+
+	\begin{frame}{实验}{Visual Doom AI Competition赛制}
+		赛制分两种：
+		\begin{itemize}
+			\item 已知地图上的受限制死亡竞赛(Limited Deathmatch)：武器只有火箭炮，agent可以捡血包和弹药；
+			
+			\item 未知地图上的的无限制死亡竞赛(Limited Deathmatch)：agent初始只有手枪，可以捡各种武器弹药和血包。提供了两张地图用于训练，3张未知地图用于测试。
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}{实验结果}{Performance of the agent with/without navigation}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-1}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{实验结果}{Visual Doom AI Competition @ CIG 2016}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-2}
+		\end{figure}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-3}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}{实验结果}{Comparison of human players with agent}
+		\begin{columns}
+			\begin{column}{.5\linewidth}
+				\begin{description}
+					\item[Single player] 人类和agent分别在独立的游戏中与机器人较量
+					
+					\item[Multiplayer] 人类与agent相互切磋
+					
+				\end{description}
+			\end{column}
+			\begin{column}{.5\linewidth}
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-4}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}{实验结果}{2017 Competition Results}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-5}
+		\end{figure}
+		
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.9\linewidth]{pictures/fps-exper-result-6}
+		\end{figure}
+	\end{frame}
+
+	\subsection{视频}
+
+	\begin{frame}{AI for FPS}{视频}
+		\centering
+		\includemedia[
+		activate=onclick, % default
+		addresource=pictures/fps.mp4,
+		flashvars={
+			source=pictures/fps.mp4
+			&autoPlay=false % start playing on activation
+			&loop=false
+		},
+		passcontext %show player’s right-click menu
+		]{\includegraphics[width=.8\linewidth]{pictures/deathmatch-poster}}{VPlayer9.swf}
+	\end{frame}
+		
+	\section*{参考文献}
+	
+	\begin{frame}[allowframebreaks]{参考文献}
+		\bibliographystyle{apalike}
+		\bibliography{reference}
+	\end{frame}
+	
+	{\background%末页致谢
+		\begin{frame}[plain,noframenumbering]
+			\finalpage{{\huge 感谢观看！\\ \small Q \& A}}
+		\end{frame}
+	}
+	
+\end{document}
